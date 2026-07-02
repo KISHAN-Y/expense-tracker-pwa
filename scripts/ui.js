@@ -299,6 +299,7 @@ const UI = {
                 }
             }
         });
+    },
 
     // Initialize form
     initializeTransactionForm() {
