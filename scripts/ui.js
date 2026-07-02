@@ -330,8 +330,7 @@ const UI = {
 
         // Set default to income
         updateCategories('income');
-    
-        ,
+    },
 
     // Setup event listeners
     setupEventListeners() {
