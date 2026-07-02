@@ -21,6 +21,20 @@ function getSheet() {
     return sheet;
 }
 
+// Handle CORS preflight
+function doOptions(e) {
+    return createCorsResponse({ success: true });
+}
+
+// Helper function to add CORS headers
+function createCorsResponse(data) {
+    return ContentService.createTextOutput(JSON.stringify(data))
+        .setMimeType(ContentService.MimeType.JSON)
+        .addHeader('Access-Control-Allow-Origin', '*')
+        .addHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        .addHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
 // GET - Return all transactions
 function doGet(e) {
     try {
@@ -41,13 +55,9 @@ function doGet(e) {
             });
         }
 
-        return ContentService.createTextOutput(
-            JSON.stringify({ success: true, transactions: transactions })
-        ).setMimeType(ContentService.MimeType.JSON);
+        return createCorsResponse({ success: true, transactions: transactions });
     } catch (error) {
-        return ContentService.createTextOutput(
-            JSON.stringify({ success: false, error: error.toString() })
-        ).setMimeType(ContentService.MimeType.JSON);
+        return createCorsResponse({ success: false, error: error.toString() });
     }
 }
 
@@ -109,13 +119,11 @@ function createTransaction(transaction) {
         ];
         sheet.appendRow(row);
         
-        return ContentService.createTextOutput(
-            JSON.stringify({ 
-                success: true, 
-                message: 'Transaction created',
-                transaction: transaction 
-            })
-        ).setMimeType(ContentService.MimeType.JSON);
+        return createCorsResponse({ 
+            success: true, 
+            message: 'Transaction created',
+            transaction: transaction 
+        });
     } catch (error) {
         return errorResponse(error.toString());
     }
@@ -140,13 +148,11 @@ function updateTransaction(transaction) {
                     data[i][6] // Keep original createdAt
                 ]]);
                 
-                return ContentService.createTextOutput(
-                    JSON.stringify({ 
-                        success: true, 
-                        message: 'Transaction updated',
-                        transaction: transaction 
-                    })
-                ).setMimeType(ContentService.MimeType.JSON);
+                return createCorsResponse({ 
+                    success: true, 
+                    message: 'Transaction updated',
+                    transaction: transaction 
+                });
             }
         }
         
@@ -167,12 +173,10 @@ function deleteTransaction(data) {
             if (sheetData[i][0] === data.id) {
                 sheet.deleteRow(i + 1);
                 
-                return ContentService.createTextOutput(
-                    JSON.stringify({ 
-                        success: true, 
-                        message: 'Transaction deleted'
-                    })
-                ).setMimeType(ContentService.MimeType.JSON);
+                return createCorsResponse({ 
+                    success: true, 
+                    message: 'Transaction deleted'
+                });
             }
         }
         
@@ -184,9 +188,7 @@ function deleteTransaction(data) {
 
 // Error response helper
 function errorResponse(message) {
-    return ContentService.createTextOutput(
-        JSON.stringify({ success: false, error: message })
-    ).setMimeType(ContentService.MimeType.JSON);
+    return createCorsResponse({ success: false, error: message });
 }
 
 // Test function (run from Apps Script editor)
