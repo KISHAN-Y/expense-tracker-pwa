@@ -1,504 +1,383 @@
+// User Interface Management
 const UI = {
-    chartInstance: null,
+    toastTimeout: null,
+    reportChartInstance: null,
+    dashboardChartInstance: null,
 
-    // Page navigation
-    goToPage(pageName) {
-        document.querySelectorAll('.page').forEach(page => {
-            page.classList.remove('active');
-        });
-        document.getElementById(pageName).classList.add('active');
-
-        // Update nav item
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        document.querySelector(`[data-page="${pageName}"]`)?.classList.add('active');
-
-        // Scroll to top
-        setTimeout(() => {
-            document.querySelector('.page.active').scrollTop = 0;
-        }, 0);
-    },
-
-    // Render recent transactions on dashboard
-    async renderRecentTransactions() {
-        const container = document.getElementById('recentTransactions');
-        const transactions = await DB.getAllTransactions();
-        
-        // Sort by date and get last 5
-        const recent = transactions
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 5);
-
-        if (recent.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No transactions yet. Start tracking!</p></div>';
-            return;
-        }
-
-        container.innerHTML = recent.map(t => `
-            <div class="transaction-item" onclick="APP.editTransaction('${t.id}')">
-                <div class="transaction-info">
-                    <div class="transaction-icon ${t.type}">
-                        ${Utils.getCategoryIcon(t.category, t.type)}
-                    </div>
-                    <div class="transaction-details">
-                        <div class="transaction-category">${t.category}</div>
-                        <div class="transaction-date">${Utils.formatDate(t.date)}</div>
-                    </div>
-                </div>
-                <div class="transaction-amount ${t.type}">
-                    ${t.type === 'income' ? '+' : '-'}${Utils.formatCurrency(t.amount)}
-                </div>
-            </div>
-        `).join('');
-    },
-
-    // Render all transactions in history
-    async renderHistoryTransactions(filter = {}) {
-        const container = document.getElementById('historyTransactions');
-        let transactions = await DB.getAllTransactions();
-
-        // Apply filters
-        if (filter.search) {
-            const search = filter.search.toLowerCase();
-            transactions = transactions.filter(t => 
-                t.category.toLowerCase().includes(search) || 
-                t.description.toLowerCase().includes(search)
-            );
-        }
-
-        if (filter.dateFilter) {
-            const today = new Date();
-            transactions = transactions.filter(t => {
-                const tDate = new Date(t.date);
-                switch (filter.dateFilter) {
-                    case 'today':
-                        return tDate.toDateString() === today.toDateString();
-                    case 'week':
-                        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                        return tDate >= weekAgo;
-                    case 'month':
-                        return tDate.getMonth() === today.getMonth() && 
-                               tDate.getFullYear() === today.getFullYear();
-                    default:
-                        return true;
-                }
-            });
-        }
-
-        if (filter.categoryFilter) {
-            transactions = transactions.filter(t => t.category === filter.categoryFilter);
-        }
-
-        // Sort by date
-        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        if (transactions.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No transactions found</p></div>';
-            return;
-        }
-
-        container.innerHTML = transactions.map(t => `
-            <div class="transaction-item">
-                <div class="transaction-info">
-                    <div class="transaction-icon ${t.type}">
-                        ${Utils.getCategoryIcon(t.category, t.type)}
-                    </div>
-                    <div class="transaction-details">
-                        <div class="transaction-category">${t.category}</div>
-                        <div class="transaction-date">${Utils.formatDate(t.date)} • ${t.description || 'No description'}</div>
-                    </div>
-                </div>
-                <div class="transaction-amount ${t.type}">
-                    ${t.type === 'income' ? '+' : '-'}${Utils.formatCurrency(t.amount)}
-                </div>
-                <div style="display: flex; gap: 8px; margin-left: 12px;">
-                    <button onclick="APP.editTransaction('${t.id}')" class="icon-btn" title="Edit">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    </button>
-                    <button onclick="APP.deleteTransaction('${t.id}')" class="icon-btn" title="Delete">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        `).join('');
-    },
-
-    // Update dashboard stats
-    async updateDashboardStats() {
-        const transactions = await DB.getAllTransactions();
-        const today = Utils.getTodayDate();
-
-        // Today's income
-        const todayIncome = transactions
-            .filter(t => t.date === today && t.type === 'income')
-            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-        // Today's expense
-        const todayExpense = transactions
-            .filter(t => t.date === today && t.type === 'expense')
-            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-        // Total balance
-        const totalIncome = transactions
-            .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-        const totalExpense = transactions
-            .filter(t => t.type === 'expense')
-            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-        const balance = totalIncome - totalExpense;
-
-        document.getElementById('todayIncome').textContent = Utils.formatCurrency(todayIncome);
-        document.getElementById('todayExpense').textContent = Utils.formatCurrency(todayExpense);
-        document.getElementById('currentBalance').textContent = Utils.formatCurrency(balance);
-        
-        await this.renderChart();
-    },
-
-    // Render/update monthly chart using Chart.js
-    async renderChart() {
-        const ctx = document.getElementById('monthlyChart');
-        if (!ctx) return;
-
-        const transactions = await DB.getAllTransactions();
-        
-        // Group by month
-        const monthlyData = {};
-        transactions.forEach(t => {
-            try {
-                const dateObj = new Date(t.date);
-                if (isNaN(dateObj)) return;
-                const monthName = dateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-                if (!monthlyData[monthName]) {
-                    monthlyData[monthName] = { income: 0, expense: 0 };
-                }
-                const amt = parseFloat(t.amount) || 0;
-                if (t.type === 'income') {
-                    monthlyData[monthName].income += amt;
-                } else {
-                    monthlyData[monthName].expense += amt;
-                }
-            } catch (e) {
-                console.error('Error parsing transaction date for chart:', e);
-            }
-        });
-
-        // Sort months chronologically
-        const sortedMonths = Object.keys(monthlyData).sort((a, b) => new Date(a) - new Date(b));
-        const incomes = sortedMonths.map(m => monthlyData[m].income);
-        const expenses = sortedMonths.map(m => monthlyData[m].expense);
-
-        // Clear existing chart instance to prevent canvas rendering conflicts
-        if (this.chartInstance) {
-            this.chartInstance.destroy();
-        }
-
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const textColor = isDark ? '#94a3b8' : '#64748b';
-        const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)';
-
-        this.chartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: sortedMonths,
-                datasets: [
-                    {
-                        label: 'Income',
-                        data: incomes,
-                        backgroundColor: '#10b981',
-                        borderRadius: 6,
-                        borderSkipped: false
-                    },
-                    {
-                        label: 'Expense',
-                        data: expenses,
-                        backgroundColor: '#f43f5e',
-                        borderRadius: 6,
-                        borderSkipped: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: textColor,
-                            font: {
-                                family: 'Plus Jakarta Sans',
-                                weight: '600',
-                                size: 11
-                            },
-                            boxWidth: 10,
-                            usePointStyle: true,
-                            pointStyle: 'circle'
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                        titleColor: isDark ? '#f8fafc' : '#0f172a',
-                        bodyColor: isDark ? '#94a3b8' : '#64748b',
-                        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                        borderWidth: 1,
-                        padding: 10,
-                        cornerRadius: 8,
-                        titleFont: {
-                            family: 'Plus Jakarta Sans',
-                            weight: '700',
-                            size: 12
-                        },
-                        bodyFont: {
-                            family: 'Plus Jakarta Sans',
-                            weight: '500',
-                            size: 11
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            color: textColor,
-                            font: {
-                                family: 'Plus Jakarta Sans',
-                                weight: '600',
-                                size: 10
-                            }
-                        }
-                    },
-                    y: {
-                        grid: {
-                            color: gridColor
-                        },
-                        ticks: {
-                            color: textColor,
-                            font: {
-                                family: 'Plus Jakarta Sans',
-                                weight: '600',
-                                size: 10
-                            },
-                            callback: function(value) {
-                                return '₹' + value.toLocaleString('en-IN');
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    },
-
-    // Initialize form
-    initializeTransactionForm() {
-        const form = document.getElementById('transactionForm');
-        const amountInput = document.getElementById('amount');
-        const dateInput = document.getElementById('date');
-        const categorySelect = document.getElementById('category');
-
-        // Set today's date
-        dateInput.value = Utils.getTodayDate();
-
-        // Update categories based on type
-        const updateCategories = (type) => {
-            const categories = type === 'income' ? CONFIG.INCOME_CATEGORIES : CONFIG.EXPENSE_CATEGORIES;
-            categorySelect.innerHTML = '<option value="">Select category</option>' + 
-                categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-        };
-
-        // Type toggle
-        document.querySelectorAll('.toggle-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                updateCategories(btn.dataset.type);
-            });
-        });
-
-        // Set default to income
-        updateCategories('income');
-    },
-
-    // Setup event listeners
+    // Set up all event listeners for navigation, forms, and buttons
     setupEventListeners() {
-        // Navigation
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const pageName = item.dataset.page;
-                this.goToPage(pageName);
-                if (pageName === 'history') {
-                    UI.renderHistoryTransactions();
-                }
+        // Bottom Navigation
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const pageId = e.currentTarget.dataset.page;
+                if (pageId) this.goToPage(pageId);
             });
         });
 
-        // Back buttons
-        document.getElementById('backFromAddBtn')?.addEventListener('click', () => this.goToPage('dashboard'));
-        document.getElementById('backFromHistoryBtn')?.addEventListener('click', () => this.goToPage('dashboard'));
-        document.getElementById('backFromSettingsBtn')?.addEventListener('click', () => this.goToPage('dashboard'));
+        // FAB Menu Toggle
+        const fabContainer = document.querySelector('.fab-container');
+        document.getElementById('mainFab').addEventListener('click', () => {
+            fabContainer.classList.toggle('expanded');
+        });
 
-        // Add button
-        document.getElementById('addBtn').addEventListener('click', () => this.goToPage('addTransaction'));
+        // Close FAB when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.fab-container') && fabContainer.classList.contains('expanded')) {
+                fabContainer.classList.remove('expanded');
+            }
+        });
 
-        // Settings button
-        document.getElementById('settingsBtn').addEventListener('click', () => this.goToPage('settings'));
+        // FAB Actions (Open Add Transaction)
+        document.getElementById('fabExpense').addEventListener('click', () => this.openAddTransaction('expense'));
+        document.getElementById('fabIncome').addEventListener('click', () => this.openAddTransaction('income'));
+        document.getElementById('fabTransfer').addEventListener('click', () => this.openAddTransaction('transfer'));
 
-        // Cancel button
-        document.getElementById('cancelBtn').addEventListener('click', (e) => {
+        // Fullscreen Back Buttons
+        document.querySelectorAll('.back-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.closeFullscreenPages();
+            });
+        });
+
+        // Open specific pages
+        document.getElementById('goToAccountsBtn')?.addEventListener('click', () => this.openFullscreenPage('accounts-page'));
+        document.getElementById('addAccountBtn')?.addEventListener('click', () => this.openFullscreenPage('add-account-page'));
+        document.getElementById('openReportBtn')?.addEventListener('click', () => {
+            this.openFullscreenPage('financial-report-page');
+            this.renderFinancialReportChart('line', 'expense'); // Default view
+        });
+
+        // Account Form Submit
+        document.getElementById('addAccountForm')?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            this.goToPage('dashboard');
+            const name = document.getElementById('newAccountName').value;
+            const type = document.getElementById('newAccountType').value;
+            const balance = parseFloat(document.getElementById('newAccountBalance').value) || 0;
+            
+            try {
+                await DB.addAccount({ name, type, balance });
+                this.showToast("Account added successfully");
+                this.closeFullscreenPages();
+                APP.loadData();
+            } catch (error) {
+                this.showToast("Failed to add account");
+            }
         });
 
-        // Dark mode toggle
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        darkModeToggle.addEventListener('change', async () => {
-            const isDark = darkModeToggle.checked;
-            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-            await DB.setSetting('darkMode', isDark);
-            await this.renderChart();
+        // Report Chart Toggles
+        document.getElementById('toggleLineChart')?.addEventListener('click', (e) => {
+            document.querySelectorAll('.chart-toggle').forEach(el => el.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            const type = document.querySelector('.type-btn.active').dataset.type;
+            this.renderFinancialReportChart('line', type);
         });
 
-        // Export button
-        document.getElementById('exportBtn').addEventListener('click', async () => {
-            const transactions = await DB.getAllTransactions();
-            Utils.exportToCSV(transactions, `expense-tracker-${new Date().toISOString().split('T')[0]}.csv`);
-            Utils.showToast('Exported successfully!');
+        document.getElementById('togglePieChart')?.addEventListener('click', (e) => {
+            document.querySelectorAll('.chart-toggle').forEach(el => el.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            const type = document.querySelector('.type-btn.active').dataset.type;
+            this.renderFinancialReportChart('pie', type);
         });
 
-        // Backup button
-        document.getElementById('backupBtn').addEventListener('click', async () => {
-            Utils.showToast('Backup feature coming soon!');
-        });
-
-        // Install button
-        const installBtn = document.getElementById('installBtn');
-        if (installBtn && 'onbeforeinstallprompt' in window) {
-            let deferredPrompt;
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPrompt = e;
-                installBtn.style.display = 'block';
+        // Report Expense/Income Toggle
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.type-btn').forEach(el => el.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+                
+                const type = e.currentTarget.dataset.type;
+                const chartType = document.querySelector('.chart-toggle.active').id === 'toggleLineChart' ? 'line' : 'pie';
+                this.renderFinancialReportChart(chartType, type);
             });
-
-            installBtn.addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User response: ${outcome}`);
-                    deferredPrompt = null;
-                    installBtn.style.display = 'none';
-                }
-            });
-        }
-
-        // Search and filter in history
-        const searchInput = document.getElementById('searchInput');
-        const dateFilter = document.getElementById('dateFilter');
-        const categoryFilter = document.getElementById('categoryFilter');
-
-        const applyFilters = Utils.debounce(() => {
-            UI.renderHistoryTransactions({
-                search: searchInput.value,
-                dateFilter: dateFilter.value,
-                categoryFilter: categoryFilter.value
-            });
-        }, 300);
-
-        searchInput?.addEventListener('input', applyFilters);
-        dateFilter?.addEventListener('change', applyFilters);
-        categoryFilter?.addEventListener('change', applyFilters);
-
-        // Sync button click
-        document.getElementById('syncBtn')?.addEventListener('click', async () => {
-            await this.handleSyncClick();
         });
+
+        // Add Transaction Form
+        document.getElementById('transFormStandard')?.addEventListener('submit', (e) => this.handleAddTransactionSubmit(e));
+        document.getElementById('transFormTransfer')?.addEventListener('submit', (e) => this.handleTransferSubmit(e));
     },
 
-    // Load theme preference
-    async loadThemePreference() {
-        const isDark = await DB.getSetting('darkMode');
-        if (isDark) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            document.getElementById('darkModeToggle').checked = true;
-        }
-    },
-
-    // Update offline status indicator
-    updateOfflineStatus() {
-        const isOnline = Utils.isOnline();
-        const statusIndicator = document.getElementById('offlineStatus');
-        const syncBtn = document.getElementById('syncBtn');
+    // Main Navigation
+    goToPage(pageId) {
+        document.querySelectorAll('.page.main-view').forEach(page => page.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
         
-        if (!statusIndicator) return;
-
-        if (isOnline) {
-            statusIndicator.classList.remove('offline');
-            statusIndicator.innerHTML = '● Online';
-            if (syncBtn) syncBtn.style.display = 'none';
-        } else {
-            statusIndicator.classList.add('offline');
-            statusIndicator.innerHTML = '● Offline';
-            if (syncBtn) syncBtn.style.display = 'flex';
-        }
+        document.getElementById(pageId)?.classList.add('active');
+        document.querySelector(`.nav-item[data-page="${pageId}"]`)?.classList.add('active');
     },
 
-    // Update sync button status
-    updateSyncStatus(synced, pendingCount) {
-        const syncBtn = document.getElementById('syncBtn');
-        if (!syncBtn) return;
-
-        if (!Utils.isOnline()) {
-            syncBtn.style.display = 'flex';
-            syncBtn.innerHTML = `<span class="sync-pending">${pendingCount} pending</span>`;
-            syncBtn.disabled = true;
-        } else if (pendingCount > 0) {
-            syncBtn.style.display = 'flex';
-            syncBtn.innerHTML = `Sync (${pendingCount})`;
-            syncBtn.disabled = false;
-        } else {
-            syncBtn.style.display = 'none';
-        }
+    // Modals/Fullscreen Pages
+    openFullscreenPage(pageId) {
+        document.getElementById(pageId)?.classList.add('active');
     },
 
-    // Handle sync button click
-    async handleSyncClick() {
-        const syncBtn = document.getElementById('syncBtn');
-        if (syncBtn) {
-            syncBtn.disabled = true;
-            syncBtn.innerHTML = '<span class="spinner"></span> Syncing...';
+    closeFullscreenPages() {
+        document.querySelectorAll('.fullscreen-page').forEach(page => page.classList.remove('active'));
+    },
+
+    // Open Add Transaction based on type
+    openAddTransaction(type) {
+        const page = document.getElementById('add-transaction-page');
+        const title = document.getElementById('addTransTitle');
+        const standardForm = document.getElementById('transFormStandard');
+        const transferForm = document.getElementById('transFormTransfer');
+
+        // Reset classes
+        page.classList.remove('bg-red', 'bg-green', 'bg-blue');
+
+        if (type === 'expense') {
+            title.textContent = 'Expense';
+            page.classList.add('bg-red');
+            standardForm.classList.remove('hidden');
+            transferForm.classList.add('hidden');
+        } else if (type === 'income') {
+            title.textContent = 'Income';
+            page.classList.add('bg-green');
+            standardForm.classList.remove('hidden');
+            transferForm.classList.add('hidden');
+        } else if (type === 'transfer') {
+            title.textContent = 'Transfer';
+            page.classList.add('bg-blue');
+            standardForm.classList.add('hidden');
+            transferForm.classList.remove('hidden');
+        }
+
+        // Pre-fill categories (dummy for now)
+        const catSelect = document.getElementById('transCategory');
+        catSelect.innerHTML = '<option value="" disabled selected>Category</option>';
+        const cats = type === 'expense' ? CONFIG.EXPENSE_CATEGORIES : CONFIG.INCOME_CATEGORIES;
+        cats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            catSelect.appendChild(opt);
+        });
+
+        this.openFullscreenPage('add-transaction-page');
+        document.querySelector('.fab-container').classList.remove('expanded');
+    },
+
+    async handleAddTransactionSubmit(e) {
+        e.preventDefault();
+        const type = document.getElementById('addTransTitle').textContent.toLowerCase();
+        const amount = parseFloat(document.getElementById('transAmount').value);
+        const category = document.getElementById('transCategory').value;
+        const description = document.getElementById('transDescription').value;
+        const account = document.getElementById('transAccount').value; // Ignoring for now
+
+        if (!amount || !category) {
+            this.showToast("Please fill all required fields");
+            return;
         }
 
         try {
-            const success = await API.syncQueue();
-            if (success) {
-                Utils.showToast('✓ All changes synced!');
-                await APP.loadData();
-            } else {
-                Utils.showToast('Some items failed to sync. Retry later.');
-            }
-        } catch (error) {
-            console.error('Sync error:', error);
-            Utils.showToast('Sync failed. Check your connection.');
-        } finally {
-            if (syncBtn) {
-                syncBtn.disabled = false;
-                syncBtn.innerHTML = 'Sync';
-            }
-            this.updateSyncStatus(true, 0);
+            await DB.addTransaction({
+                type,
+                amount,
+                category,
+                description,
+                date: new Date().toISOString()
+            });
+            this.showToast("Transaction saved");
+            this.closeFullscreenPages();
+            document.getElementById('transFormStandard').reset();
+            document.getElementById('transAmount').value = '';
+            APP.loadData();
+        } catch (err) {
+            this.showToast("Error saving transaction");
         }
+    },
+
+    handleTransferSubmit(e) {
+        e.preventDefault();
+        this.showToast("Transfer functionality coming soon");
+    },
+
+    // Rendering functions
+    renderDashboard(transactions, accounts) {
+        // Calculate totals
+        let totalIncome = 0;
+        let totalExpense = 0;
+        
+        transactions.forEach(t => {
+            if (t.type === 'income') totalIncome += t.amount;
+            if (t.type === 'expense') totalExpense += t.amount;
+        });
+
+        const balance = totalIncome - totalExpense; // Simple logic
+
+        document.getElementById('totalBalanceDisplay').textContent = Utils.formatCurrency(balance);
+        document.getElementById('totalIncomeDisplay').textContent = Utils.formatCurrency(totalIncome);
+        document.getElementById('totalExpenseDisplay').textContent = Utils.formatCurrency(totalExpense);
+
+        // Render Recent Transactions (max 5)
+        const recentList = document.getElementById('recentTransactionsList');
+        recentList.innerHTML = '';
+        
+        transactions.slice(0, 5).forEach(t => {
+            const el = document.createElement('div');
+            el.className = 'transaction-item';
+            
+            const isExpense = t.type === 'expense';
+            const amountClass = isExpense ? 'text-red' : 'text-green';
+            const prefix = isExpense ? '-' : '+';
+            
+            el.innerHTML = `
+                <div class="txn-icon bg-${isExpense ? 'red' : 'green'}-light">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--${isExpense ? 'danger' : 'success'})" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div class="txn-details">
+                    <span class="txn-category">${t.category}</span>
+                    <span class="txn-desc">${t.description || t.date.split('T')[0]}</span>
+                </div>
+                <div class="txn-amount ${amountClass}">
+                    ${prefix}${Utils.formatCurrency(t.amount)}
+                </div>
+            `;
+            recentList.appendChild(el);
+        });
+
+        // Initialize empty dashboard chart
+        const ctx = document.getElementById('dashboardChart');
+        if (ctx) {
+            if (this.dashboardChartInstance) this.dashboardChartInstance.destroy();
+            this.dashboardChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Spend',
+                        data: [12, 19, 3, 5, 2, 3, 10], // Dummy data
+                        borderColor: '#7F3DFF',
+                        tension: 0.4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    },
+
+    renderTransactionList(transactions) {
+        const fullList = document.getElementById('fullTransactionsList');
+        if (!fullList) return;
+        fullList.innerHTML = '';
+
+        // Just rendering a flat list for simplicity right now
+        transactions.forEach(t => {
+            const el = document.createElement('div');
+            el.className = 'transaction-item';
+            
+            const isExpense = t.type === 'expense';
+            const amountClass = isExpense ? 'text-red' : 'text-green';
+            const prefix = isExpense ? '-' : '+';
+            
+            el.innerHTML = `
+                <div class="txn-icon bg-${isExpense ? 'red' : 'green'}-light">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--${isExpense ? 'danger' : 'success'})" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div class="txn-details">
+                    <span class="txn-category">${t.category}</span>
+                    <span class="txn-desc">${t.description || t.date.split('T')[0]}</span>
+                </div>
+                <div class="txn-amount ${amountClass}">
+                    ${prefix}${Utils.formatCurrency(t.amount)}
+                </div>
+            `;
+            fullList.appendChild(el);
+        });
+    },
+
+    renderAccountsList(accounts) {
+        const container = document.getElementById('accountsListContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        let total = 0;
+        
+        accounts.forEach(acc => {
+            total += acc.balance;
+            const el = document.createElement('div');
+            el.className = 'account-card';
+            el.innerHTML = `
+                <div class="acc-icon bg-purple-light"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg></div>
+                <span class="acc-name">${acc.name}</span>
+                <span class="acc-balance">${Utils.formatCurrency(acc.balance)}</span>
+            `;
+            container.appendChild(el);
+            
+            // Populate account dropdowns
+            const transAcc = document.getElementById('transAccount');
+            if (transAcc) {
+                const opt = document.createElement('option');
+                opt.value = acc.id;
+                opt.textContent = acc.name;
+                transAcc.appendChild(opt);
+            }
+        });
+
+        document.getElementById('accountsTotalBalance').textContent = Utils.formatCurrency(total);
+    },
+
+    renderFinancialReportChart(chartType, dataType) {
+        const ctx = document.getElementById('reportChartCanvas');
+        if (!ctx) return;
+        
+        if (this.reportChartInstance) {
+            this.reportChartInstance.destroy();
+        }
+
+        // We would normally filter transactions by dataType (expense/income) here and group by category or date.
+        // For demonstration, we use dummy data that looks like the screenshots.
+        
+        const isExpense = dataType === 'expense';
+        const color = isExpense ? '#FD3C4A' : '#00A86B';
+        document.getElementById('reportTotalDisplay').textContent = isExpense ? '₹332' : '₹6,000';
+
+        if (chartType === 'line') {
+            this.reportChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['1', '5', '10', '15', '20', '25', '30'],
+                    datasets: [{
+                        label: dataType,
+                        data: isExpense ? [120, 190, 80, 250, 100, 332, 200] : [1000, 2000, 1500, 4000, 3000, 6000, 5000],
+                        borderColor: color,
+                        tension: 0.4,
+                        fill: false
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        } else {
+            this.reportChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: isExpense ? ['Shopping', 'Subscription', 'Food'] : ['Salary', 'Passive Income'],
+                    datasets: [{
+                        data: isExpense ? [120, 80, 132] : [4000, 2000],
+                        backgroundColor: [color, '#FCCC6F', '#7F3DFF']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '75%' }
+            });
+        }
+    },
+
+    // Toast notifications
+    showToast(message, duration = 3000) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+        }
+        
+        this.toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, duration);
     }
 };
 
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = UI;
+}

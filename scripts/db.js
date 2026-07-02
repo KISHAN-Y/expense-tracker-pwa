@@ -1,175 +1,169 @@
-// IndexedDB Database Management
+// Firebase Database and Authentication Management
 const DB = {
+    app: null,
     db: null,
+    auth: null,
+    user: null,
 
-    // Initialize database
+    // Initialize Firebase
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
-
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                this.db = request.result;
-                resolve(this.db);
-            };
-
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-
-                // Transactions store
-                if (!db.objectStoreNames.contains(CONFIG.STORES.TRANSACTIONS)) {
-                    const transStore = db.createObjectStore(CONFIG.STORES.TRANSACTIONS, { keyPath: 'id' });
-                    transStore.createIndex('date', 'date', { unique: false });
-                    transStore.createIndex('type', 'type', { unique: false });
-                    transStore.createIndex('category', 'category', { unique: false });
-                    transStore.createIndex('createdAt', 'createdAt', { unique: false });
+            try {
+                if (!firebase.apps.length) {
+                    this.app = firebase.initializeApp(CONFIG.FIREBASE_CONFIG);
+                } else {
+                    this.app = firebase.app();
                 }
-
-                // Settings store
-                if (!db.objectStoreNames.contains(CONFIG.STORES.SETTINGS)) {
-                    db.createObjectStore(CONFIG.STORES.SETTINGS, { keyPath: 'key' });
-                }
-
-                // Sync queue store
-                if (!db.objectStoreNames.contains(CONFIG.STORES.SYNC_QUEUE)) {
-                    db.createObjectStore(CONFIG.STORES.SYNC_QUEUE, { keyPath: 'id', autoIncrement: true });
-                }
-            };
+                this.db = firebase.firestore();
+                this.auth = firebase.auth();
+                resolve();
+            } catch (error) {
+                console.error("Firebase init error:", error);
+                reject(error);
+            }
         });
     },
 
-    // Add transaction
+    // --- Authentication ---
+
+    async signInWithGoogle() {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        try {
+            // Reverting to popup as redirect fails in iframe simulators due to sessionStorage blocking
+            const result = await this.auth.signInWithPopup(provider);
+            this.user = result.user;
+            return this.user;
+        } catch (error) {
+            console.error("Google Sign-In Error:", error);
+            throw error;
+        }
+    },
+
+    async signOut() {
+        try {
+            await this.auth.signOut();
+            this.user = null;
+        } catch (error) {
+            console.error("Sign-Out Error:", error);
+            throw error;
+        }
+    },
+
+    onAuthStateChanged(callback) {
+        this.auth.onAuthStateChanged((user) => {
+            this.user = user;
+            callback(user);
+        });
+    },
+
+    // --- Firestore CRUD ---
+
+    // Get current user ID
+    get uid() {
+        return this.user ? this.user.uid : null;
+    },
+
+    // TRANSACTIONS
+
     async addTransaction(transaction) {
-        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readwrite').objectStore(CONFIG.STORES.TRANSACTIONS);
-        transaction.id = transaction.id || Utils.generateId();
-        transaction.createdAt = transaction.createdAt || new Date().toISOString();
-        return new Promise((resolve, reject) => {
-            const request = store.add(transaction);
-            request.onsuccess = () => resolve(transaction);
-            request.onerror = () => reject(request.error);
-        });
+        if (!this.uid) throw new Error("User not authenticated");
+        transaction.uid = this.uid;
+        transaction.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        
+        try {
+            const docRef = await this.db.collection(CONFIG.STORES.TRANSACTIONS).add(transaction);
+            transaction.id = docRef.id;
+            return transaction;
+        } catch (error) {
+            console.error("Error adding transaction:", error);
+            throw error;
+        }
     },
 
-    // Update transaction
-    async updateTransaction(transaction) {
-        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readwrite').objectStore(CONFIG.STORES.TRANSACTIONS);
-        return new Promise((resolve, reject) => {
-            const request = store.put(transaction);
-            request.onsuccess = () => resolve(transaction);
-            request.onerror = () => reject(request.error);
-        });
-    },
-
-    // Delete transaction
-    async deleteTransaction(id) {
-        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readwrite').objectStore(CONFIG.STORES.TRANSACTIONS);
-        return new Promise((resolve, reject) => {
-            const request = store.delete(id);
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(request.error);
-        });
-    },
-
-    // Get all transactions
     async getAllTransactions() {
-        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
-        return new Promise((resolve, reject) => {
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        if (!this.uid) throw new Error("User not authenticated");
+        try {
+            const querySnapshot = await this.db.collection(CONFIG.STORES.TRANSACTIONS)
+                                                .where("uid", "==", this.uid)
+                                                .get();
+            const transactions = [];
+            querySnapshot.forEach((doc) => {
+                transactions.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // Sort by createdAt descending on the client side to avoid Firebase Index requirement
+            transactions.sort((a, b) => {
+                const timeA = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                const timeB = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                return timeB - timeA;
+            });
+            
+            return transactions;
+        } catch (error) {
+            console.error("Error getting transactions:", error);
+            throw error;
+        }
     },
 
-    // Get transactions by date
-    async getTransactionsByDate(date) {
-        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
-        const index = store.index('date');
-        return new Promise((resolve, reject) => {
-            const request = index.getAll(date);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+    async deleteTransaction(id) {
+        if (!this.uid) throw new Error("User not authenticated");
+        try {
+            await this.db.collection(CONFIG.STORES.TRANSACTIONS).doc(id).delete();
+            return true;
+        } catch (error) {
+            console.error("Error deleting transaction:", error);
+            throw error;
+        }
     },
 
-    // Get transactions by type
-    async getTransactionsByType(type) {
-        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
-        const index = store.index('type');
-        return new Promise((resolve, reject) => {
-            const request = index.getAll(type);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+    // ACCOUNTS
+
+    async addAccount(account) {
+        if (!this.uid) throw new Error("User not authenticated");
+        account.uid = this.uid;
+        account.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        
+        try {
+            const docRef = await this.db.collection("accounts").add(account);
+            account.id = docRef.id;
+            return account;
+        } catch (error) {
+            console.error("Error adding account:", error);
+            throw error;
+        }
     },
 
-    // Get settings
-    async getSetting(key) {
-        const store = this.db.transaction(CONFIG.STORES.SETTINGS, 'readonly').objectStore(CONFIG.STORES.SETTINGS);
-        return new Promise((resolve, reject) => {
-            const request = store.get(key);
-            request.onsuccess = () => resolve(request.result?.value || null);
-            request.onerror = () => reject(request.error);
-        });
+    async getAllAccounts() {
+        if (!this.uid) return [];
+        try {
+            const querySnapshot = await this.db.collection("accounts")
+                                                .where("uid", "==", this.uid)
+                                                .get();
+            const accounts = [];
+            querySnapshot.forEach((doc) => {
+                accounts.push({ id: doc.id, ...doc.data() });
+            });
+            return accounts;
+        } catch (error) {
+            console.error("Error getting accounts:", error);
+            throw error;
+        }
     },
-
-    // Set setting
-    async setSetting(key, value) {
-        const store = this.db.transaction(CONFIG.STORES.SETTINGS, 'readwrite').objectStore(CONFIG.STORES.SETTINGS);
-        return new Promise((resolve, reject) => {
-            const request = store.put({ key, value });
-            request.onsuccess = () => resolve(value);
-            request.onerror = () => reject(request.error);
-        });
-    },
-
-    // Clear transactions store
-    async clearTransactions() {
-        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readwrite').objectStore(CONFIG.STORES.TRANSACTIONS);
-        return new Promise((resolve, reject) => {
-            const request = store.clear();
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(request.error);
-        });
-    },
-
-    // Clear all data
-    async clearAll() {
-        const transaction = this.db.transaction([CONFIG.STORES.TRANSACTIONS, CONFIG.STORES.SETTINGS], 'readwrite');
-        return new Promise((resolve, reject) => {
-            transaction.objectStore(CONFIG.STORES.TRANSACTIONS).clear();
-            transaction.objectStore(CONFIG.STORES.SETTINGS).clear();
-            transaction.oncomplete = () => resolve(true);
-            transaction.onerror = () => reject(transaction.error);
-        });
-    },
-
-    // Add to sync queue
-    async addToSyncQueue(action, data) {
-        const store = this.db.transaction(CONFIG.STORES.SYNC_QUEUE, 'readwrite').objectStore(CONFIG.STORES.SYNC_QUEUE);
-        return new Promise((resolve, reject) => {
-            const request = store.add({ action, data, timestamp: new Date().toISOString() });
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    },
-
-    // Get sync queue
-    async getSyncQueue() {
-        const store = this.db.transaction(CONFIG.STORES.SYNC_QUEUE, 'readonly').objectStore(CONFIG.STORES.SYNC_QUEUE);
-        return new Promise((resolve, reject) => {
-            const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-    },
-
-    // Clear sync queue
-    async clearSyncQueue(id) {
-        const store = this.db.transaction(CONFIG.STORES.SYNC_QUEUE, 'readwrite').objectStore(CONFIG.STORES.SYNC_QUEUE);
-        return new Promise((resolve, reject) => {
-            const request = store.delete(id);
-            request.onsuccess = () => resolve(true);
-            request.onerror = () => reject(request.error);
-        });
+    
+    // UTILS
+    async ensureDefaultAccount() {
+        const accounts = await this.getAllAccounts();
+        if (accounts.length === 0 && this.uid) {
+            await this.addAccount({
+                name: "Wallet",
+                type: "wallet",
+                balance: 0,
+                bank: null
+            });
+        }
     }
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = DB;
+}

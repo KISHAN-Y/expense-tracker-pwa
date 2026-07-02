@@ -2,304 +2,417 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Expense Tracker PWA - Track your income and expenses with offline support">
-    <meta name="theme-color" content="#4F46E5">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Premium Expense Tracker PWA">
+    <meta name="theme-color" content="#7F3DFF">
     <title>Expense Tracker</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles/main.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="assets/icon-192.svg">
     <link rel="apple-touch-icon" href="assets/icon-192.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles/main.css">
+
+    <!-- Firebase SDKs (using compat for simplicity in this vanilla setup) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <!-- Dashboard Page -->
-    <div id="dashboard" class="page active">
-        <header class="header">
-            <div class="header-content">
-                <h1>Expense Tracker</h1>
-                <div class="header-controls">
-                    <button id="syncBtn" class="icon-btn sync-btn" title="Sync data" style="display: none;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M1 4v6h6M23 20v-6h-6"></path>
-                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64M3.51 15A9 9 0 0 0 18.36 18.36"></path>
-                        </svg>
-                    </button>
-                    <button id="settingsBtn" class="icon-btn" title="Settings">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
-                        </svg>
-                    </button>
-                </div>
+    
+    <!-- Login Page -->
+    <div id="login-page" class="page active">
+        <div class="login-container">
+            <div class="login-logo">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+                </svg>
             </div>
-            <div id="offlineStatus" class="offline-status">● Online</div>
-        </header>
-
-        <main class="dashboard-main">
-            <!-- Wallet Dashboard Hero -->
-            <div class="wallet-container">
-                <div class="wallet-card">
-                    <div class="wallet-glow"></div>
-                    <div class="wallet-card-header">
-                        <span class="wallet-label">Total Balance</span>
-                        <div class="wallet-chip"></div>
-                    </div>
-                    <div class="wallet-balance" id="currentBalance">₹0</div>
-                    <div class="wallet-stats">
-                        <div class="wallet-stat-item income">
-                            <span class="stat-icon">↑</span>
-                            <div>
-                                <span class="stat-label">Today's Income</span>
-                                <span class="stat-value" id="todayIncome">₹0</span>
-                            </div>
-                        </div>
-                        <div class="wallet-stat-item expense">
-                            <span class="stat-icon">↓</span>
-                            <div>
-                                <span class="stat-label">Today's Expense</span>
-                                <span class="stat-value" id="todayExpense">₹0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Monthly Overview -->
-            <div class="section">
-                <h2>Monthly Overview</h2>
-                <div class="card">
-                    <div class="chart-placeholder">
-                        <canvas id="monthlyChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Transactions -->
-            <div class="section">
-                <div class="section-header">
-                    <h2>Recent Transactions</h2>
-                    <a href="#history" class="link-btn">View All</a>
-                </div>
-                <div id="recentTransactions" class="transactions-list">
-                    <div class="empty-state">
-                        <p>No transactions yet. Start tracking!</p>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <!-- Floating Action Button -->
-        <button id="addBtn" class="fab" title="Add Transaction">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
-            </svg>
-        </button>
+            <h1>Expense Tracker</h1>
+            <p>Take control of your finances today.</p>
+            <button id="googleLoginBtn" class="btn btn-primary full-width">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/></svg>
+                Continue with Google
+            </button>
+        </div>
     </div>
 
-    <!-- Add Transaction Page -->
-    <div id="addTransaction" class="page">
-        <header class="header">
-            <button id="backFromAddBtn" class="icon-btn" title="Back">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-            </button>
-            <h1>Add Transaction</h1>
-            <div></div>
-        </header>
-
-        <main class="form-container">
-            <form id="transactionForm">
-                <!-- Type Toggle -->
-                <div class="toggle-group">
-                    <button type="button" class="toggle-btn active income-mode" data-type="income">Income</button>
-                    <button type="button" class="toggle-btn expense-mode" data-type="expense">Expense</button>
+    <!-- Main App Container (Hidden until logged in) -->
+    <div id="app-container" style="display: none;">
+        
+        <!-- Home Page -->
+        <div id="home" class="page active main-view">
+            <header class="header dashboard-header">
+                <div class="month-selector">
+                    <span id="currentMonthLabel">October</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <button class="icon-btn notif-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                </button>
+            </header>
+            
+            <main class="page-main">
+                <div class="balance-container">
+                    <span class="balance-label">Account Balance</span>
+                    <h1 id="totalBalanceDisplay">₹0</h1>
                 </div>
 
-                <!-- Amount Input -->
-                <div class="form-group">
-                    <label for="amount">Amount</label>
-                    <div class="amount-input-wrapper">
+                <div class="income-expense-cards">
+                    <div class="card bg-green">
+                        <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></div>
+                        <div class="card-details">
+                            <span class="card-title">Income</span>
+                            <span class="card-amount" id="totalIncomeDisplay">₹0</span>
+                        </div>
+                    </div>
+                    <div class="card bg-red">
+                        <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div>
+                        <div class="card-details">
+                            <span class="card-title">Expenses</span>
+                            <span class="card-amount" id="totalExpenseDisplay">₹0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section spend-frequency">
+                    <h2>Spend Frequency</h2>
+                    <div class="chart-container">
+                        <canvas id="dashboardChart"></canvas>
+                    </div>
+                    <div class="time-filters">
+                        <button class="time-filter active">Today</button>
+                        <button class="time-filter">Week</button>
+                        <button class="time-filter">Month</button>
+                        <button class="time-filter">Year</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">
+                        <h2>Recent Transaction</h2>
+                        <button class="btn-text" id="seeAllRecentBtn">See All</button>
+                    </div>
+                    <div id="recentTransactionsList" class="transactions-list">
+                        <!-- Transactions injected here -->
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Transaction Page -->
+        <div id="transaction" class="page main-view">
+            <header class="header">
+                <div class="month-selector">
+                    <span id="transMonthLabel">Month</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
+                <button class="icon-btn" id="filterBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+                </button>
+            </header>
+            
+            <main class="page-main">
+                <div class="financial-report-banner" id="openReportBtn">
+                    <span>See your financial report</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+
+                <div id="fullTransactionsList" class="transactions-list grouped-list">
+                    <!-- Transactions grouped by date injected here -->
+                </div>
+            </main>
+        </div>
+
+        <!-- Budget Page (Placeholder) -->
+        <div id="budget" class="page main-view">
+            <header class="header">
+                <h2>Budget</h2>
+            </header>
+            <main class="page-main flex-center">
+                <p>Budget features coming soon.</p>
+            </main>
+        </div>
+
+        <!-- Profile Page -->
+        <div id="profile" class="page main-view">
+            <header class="header profile-header">
+                <div class="profile-info">
+                    <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='none' stroke='%237F3DFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'></path><circle cx='12' cy='7' r='4'></circle></svg>" alt="Profile" class="avatar" id="userAvatar">
+                    <div class="profile-details">
+                        <span class="profile-username">Username</span>
+                        <h2 id="userNameDisplay">User Name</h2>
+                    </div>
+                </div>
+                <button class="icon-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button>
+            </header>
+            
+            <main class="page-main">
+                <div class="profile-menu">
+                    <button class="menu-item" id="goToAccountsBtn">
+                        <div class="menu-icon bg-purple-light"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg></div>
+                        <span>Account</span>
+                    </button>
+                    <button class="menu-item">
+                        <div class="menu-icon bg-purple-light"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></div>
+                        <span>Settings</span>
+                    </button>
+                    <button class="menu-item">
+                        <div class="menu-icon bg-purple-light"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div>
+                        <span>Export Data</span>
+                    </button>
+                    <button class="menu-item" id="logoutBtn">
+                        <div class="menu-icon bg-red-light"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></div>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </main>
+        </div>
+
+        <!-- ================= FULLSCREEN PAGES ================= -->
+
+        <!-- Accounts List Page -->
+        <div id="accounts-page" class="page fullscreen-page">
+            <header class="header bg-transparent">
+                <button class="icon-btn back-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+                <h2>Account</h2>
+                <div></div>
+            </header>
+            <main class="page-main">
+                <div class="account-balance-hero">
+                    <span class="balance-label">Account Balance</span>
+                    <h1 id="accountsTotalBalance">₹0</h1>
+                </div>
+                <div id="accountsListContainer" class="accounts-list">
+                    <!-- Accounts injected here -->
+                </div>
+                <button id="addAccountBtn" class="btn btn-primary full-width mt-20">+ Add new wallet</button>
+            </main>
+        </div>
+
+        <!-- Add Account Page -->
+        <div id="add-account-page" class="page fullscreen-page bg-purple">
+            <header class="header text-white">
+                <button class="icon-btn back-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+                <h2>Add new account</h2>
+                <div></div>
+            </header>
+            <main class="page-main relative">
+                <div class="large-amount-input text-white">
+                    <span class="amount-label">Balance</span>
+                    <div class="amount-wrapper">
                         <span class="currency">₹</span>
-                        <input type="number" id="amount" placeholder="0.00" step="0.01" min="0" required>
+                        <input type="number" id="newAccountBalance" placeholder="00.0" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="bottom-sheet static-sheet">
+                    <form id="addAccountForm">
+                        <div class="form-group">
+                            <input type="text" id="newAccountName" placeholder="Name" required class="large-input">
+                        </div>
+                        <div class="form-group">
+                            <select id="newAccountType" required class="large-input custom-select">
+                                <option value="" disabled selected>Account Type</option>
+                                <option value="wallet">Wallet</option>
+                                <option value="bank">Bank</option>
+                            </select>
+                        </div>
+                        <div id="bankSelectorGroup" class="form-group hidden">
+                            <label>Bank</label>
+                            <div class="bank-selector">
+                                <button type="button" class="bank-btn" data-bank="chase">C</button>
+                                <button type="button" class="bank-btn" data-bank="paypal">P</button>
+                                <button type="button" class="bank-btn" data-bank="citi">Citi</button>
+                                <button type="button" class="bank-btn" data-bank="bofa">B</button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary full-width mt-20">Continue</button>
+                    </form>
+                </div>
+            </main>
+        </div>
+
+        <!-- Add Transaction Page -->
+        <div id="add-transaction-page" class="page fullscreen-page">
+            <header class="header text-white">
+                <button class="icon-btn back-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+                <h2 id="addTransTitle">Expense</h2>
+                <div></div>
+            </header>
+            <main class="page-main relative">
+                <div class="large-amount-input text-white">
+                    <span class="amount-label">How much?</span>
+                    <div class="amount-wrapper">
+                        <span class="currency">₹</span>
+                        <input type="number" id="transAmount" placeholder="0" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="bottom-sheet static-sheet">
+                    <!-- Expense/Income Form -->
+                    <form id="transFormStandard">
+                        <div class="form-group">
+                            <select id="transCategory" class="large-input custom-select" required>
+                                <option value="" disabled selected>Category</option>
+                                <!-- Injected dynamically -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" id="transDescription" placeholder="Description" class="large-input">
+                        </div>
+                        <div class="form-group">
+                            <select id="transAccount" class="large-input custom-select" required>
+                                <option value="" disabled selected>Wallet</option>
+                                <!-- Accounts injected -->
+                            </select>
+                        </div>
+                        <div class="form-group repeat-toggle">
+                            <div>
+                                <span class="fw-600">Repeat</span>
+                                <span class="d-block text-gray text-sm">Repeat transaction</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="transRepeat">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary full-width mt-20">Continue</button>
+                    </form>
+
+                    <!-- Transfer Form -->
+                    <form id="transFormTransfer" class="hidden">
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <select id="transferFrom" class="large-input custom-select" required>
+                                    <option value="" disabled selected>From</option>
+                                </select>
+                            </div>
+                            <div class="transfer-icon-center">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M17 3v18M17 21l-4-4M17 21l4-4M7 21V3M7 3l4 4M7 3L3 7"/></svg>
+                            </div>
+                            <div class="form-group flex-1">
+                                <select id="transferTo" class="large-input custom-select" required>
+                                    <option value="" disabled selected>To</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" id="transferDescription" placeholder="Description" class="large-input">
+                        </div>
+                        <button type="submit" class="btn btn-primary full-width mt-20">Continue</button>
+                    </form>
+                </div>
+            </main>
+        </div>
+
+        <!-- Detailed Financial Report Page -->
+        <div id="financial-report-page" class="page fullscreen-page">
+            <header class="header">
+                <button class="icon-btn back-btn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+                <h2>Financial Report</h2>
+                <div></div>
+            </header>
+            <main class="page-main">
+                <div class="report-controls">
+                    <div class="month-selector border">
+                        <span>Month</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </div>
+                    <div class="chart-toggles">
+                        <button class="chart-toggle active" id="toggleLineChart"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg></button>
+                        <button class="chart-toggle" id="togglePieChart"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg></button>
                     </div>
                 </div>
 
-                <!-- Category -->
-                <div class="form-group">
-                    <label for="category">Category</label>
-                    <select id="category" required>
-                        <option value="">Select category</option>
-                        <option value="Salary">Salary</option>
-                        <option value="Freelance">Freelance</option>
-                        <option value="Business">Business</option>
-                    </select>
+                <div class="report-amount-hero">
+                    <h1 id="reportTotalDisplay">₹0</h1>
                 </div>
 
-                <!-- Description -->
-                <div class="form-group">
-                    <label for="description">Description</label>
-                    <input type="text" id="description" placeholder="Enter description" maxlength="100">
+                <div class="chart-area">
+                    <canvas id="reportChartCanvas"></canvas>
                 </div>
 
-                <!-- Date -->
-                <div class="form-group">
-                    <label for="date">Date</label>
-                    <input type="date" id="date" required>
+                <div class="type-toggle-pill">
+                    <button class="type-btn active" data-type="expense">Expense</button>
+                    <button class="type-btn" data-type="income">Income</button>
                 </div>
 
-                <!-- Buttons -->
-                <div class="form-actions">
-                    <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Transaction</button>
-                </div>
-            </form>
-        </main>
-    </div>
-
-    <!-- History Page -->
-    <div id="history" class="page">
-        <header class="header">
-            <button id="backFromHistoryBtn" class="icon-btn" title="Back">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-            </button>
-            <h1>History</h1>
-            <div></div>
-        </header>
-
-        <main class="page-main">
-            <!-- Filters -->
-            <div class="filters-container">
-                <input type="search" id="searchInput" placeholder="Search transactions..." class="filter-input">
-                <select id="dateFilter" class="filter-input">
-                    <option value="">All Dates</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                </select>
-                <select id="categoryFilter" class="filter-input">
-                    <option value="">All Categories</option>
-                    <option value="Food">Food</option>
-                    <option value="Travel">Travel</option>
-                    <option value="Fuel">Fuel</option>
-                </select>
-            </div>
-
-            <!-- Transactions List -->
-            <div id="historyTransactions" class="transactions-list">
-                <div class="empty-state">
-                    <p>No transactions found</p>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Settings Page -->
-    <div id="settings" class="page">
-        <header class="header">
-            <button id="backFromSettingsBtn" class="icon-btn" title="Back">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-            </button>
-            <h1>Settings</h1>
-            <div></div>
-        </header>
-
-        <main class="page-main">
-            <div class="settings-section">
-                <h2>Appearance</h2>
-                <div class="setting-item">
-                    <div class="setting-label">
-                        <span>Dark Mode</span>
-                        <span class="setting-description">Enable dark theme</span>
+                <!-- Below the chart: List of transactions or Category Progress -->
+                <div class="report-list-container">
+                    <div class="section-header">
+                        <div class="custom-select-small">
+                            <span>Transaction</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </div>
+                        <button class="icon-btn border"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line></svg></button>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="darkModeToggle">
-                        <span class="toggle-slider"></span>
-                    </label>
+                    <div id="reportListContent">
+                        <!-- Injected JS -->
+                    </div>
                 </div>
-            </div>
+            </main>
+        </div>
 
-            <div class="settings-section">
-                <h2>Preferences</h2>
-                <div class="setting-item">
-                    <label for="currencySelect" class="setting-label">
-                        <span>Currency</span>
-                        <span class="setting-description">Select your currency</span>
-                    </label>
-                    <select id="currencySelect">
-                        <option value="INR">₹ Indian Rupee</option>
-                        <option value="USD">$ US Dollar</option>
-                        <option value="EUR">€ Euro</option>
-                    </select>
-                </div>
-            </div>
 
-            <div class="settings-section">
-                <h2>Data</h2>
-                <button id="exportBtn" class="btn btn-secondary full-width">Export as CSV</button>
-                <button id="backupBtn" class="btn btn-secondary full-width">Backup to Cloud</button>
-            </div>
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-page="home">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                <span>Home</span>
+            </button>
+            <button class="nav-item" data-page="transaction">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3v5h-5M3 21v-5h5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/></svg>
+                <span>Transaction</span>
+            </button>
+            <div class="nav-item-placeholder"></div>
+            <button class="nav-item" data-page="budget">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M21.21 15.89A10 10 0 1 1 8 2.83M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                <span>Budget</span>
+            </button>
+            <button class="nav-item" data-page="profile">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Profile</span>
+            </button>
+        </nav>
 
-            <div class="settings-section">
-                <h2>About</h2>
-                <div class="setting-item">
-                    <span>Expense Tracker PWA v1.0.0</span>
-                    <p class="setting-description">A modern progressive web app for tracking your finances</p>
-                </div>
+        <!-- Central Expanding FAB -->
+        <div class="fab-container">
+            <!-- Expanded Menu Options -->
+            <div class="fab-menu">
+                <button class="fab-option fab-income" id="fabIncome" title="Income">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                </button>
+                <button class="fab-option fab-transfer" id="fabTransfer" title="Transfer">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3v18M17 21l-4-4M17 21l4-4M7 21V3M7 3l4 4M7 3L3 7"/></svg>
+                </button>
+                <button class="fab-option fab-expense" id="fabExpense" title="Expense">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                </button>
             </div>
+            <!-- Main Button -->
+            <button id="mainFab" class="fab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="fab-icon-plus"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="fab-icon-close"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
 
-            <div class="settings-section">
-                <button id="installBtn" class="btn btn-primary full-width" style="display:none;">Install App</button>
-            </div>
-        </main>
-    </div>
-
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-        <button class="nav-item active" data-page="dashboard">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            </svg>
-            <span>Home</span>
-        </button>
-        <button class="nav-item" data-page="history">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
-                <path d="M21 3v5h-5"></path>
-                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
-                <path d="M3 21v-5h5"></path>
-            </svg>
-            <span>History</span>
-        </button>
-        <button class="nav-item" data-page="settings">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
-            </svg>
-            <span>Settings</span>
-        </button>
-    </nav>
+    </div> <!-- End App Container -->
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="loading-indicator">
-        <div class="spinner"></div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Application Scripts -->
     <script src="scripts/config.js"></script>
     <script src="scripts/utils.js"></script>
     <script src="scripts/db.js"></script>
-    <script src="scripts/api.js"></script>
     <script src="scripts/ui.js"></script>
     <script src="scripts/app.js"></script>
 </body>

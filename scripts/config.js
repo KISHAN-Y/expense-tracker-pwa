@@ -37,6 +37,14 @@ const CONFIG = {
         TRANSACTIONS: 'transactions',
         SETTINGS: 'settings',
         SYNC_QUEUE: 'syncQueue'
+    },
+    FIREBASE_CONFIG: {
+        apiKey: "AIzaSyCuuiFrlMdi8YNiWI1E52-4Cin1rTRZ2Dg",
+        authDomain: "expense-e847b.firebaseapp.com",
+        projectId: "expense-e847b",
+        storageBucket: "expense-e847b.firebasestorage.app",
+        messagingSenderId: "472231290671",
+        appId: "1:472231290671:web:7b507bede9884cc167a3da"
     }
 };
 
