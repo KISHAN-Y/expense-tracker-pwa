@@ -42,7 +42,7 @@ const DB = {
     async addTransaction(transaction) {
         const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readwrite').objectStore(CONFIG.STORES.TRANSACTIONS);
         transaction.id = transaction.id || Utils.generateId();
-        transaction.createdAt = new Date().toISOString();
+        transaction.createdAt = transaction.createdAt || new Date().toISOString();
         return new Promise((resolve, reject) => {
             const request = store.add(transaction);
             request.onsuccess = () => resolve(transaction);
@@ -118,6 +118,16 @@ const DB = {
         return new Promise((resolve, reject) => {
             const request = store.put({ key, value });
             request.onsuccess = () => resolve(value);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    // Clear transactions store
+    async clearTransactions() {
+        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readwrite').objectStore(CONFIG.STORES.TRANSACTIONS);
+        return new Promise((resolve, reject) => {
+            const request = store.clear();
+            request.onsuccess = () => resolve(true);
             request.onerror = () => reject(request.error);
         });
     },

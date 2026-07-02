@@ -55,18 +55,13 @@ const APP = {
             // Load from server if online
             if (Utils.isOnline()) {
                 const transactions = await API.getTransactions();
-                if (transactions && transactions.length > 0) {
+                if (transactions !== null) {
                     // Clear local DB and sync with server
-                    const localTransactions = await DB.getAllTransactions();
+                    await DB.clearTransactions();
                     
-                    // Update or add transactions
+                    // Add all transactions from server
                     for (const t of transactions) {
-                        const exists = localTransactions.find(lt => lt.id === t.id);
-                        if (exists) {
-                            await DB.updateTransaction(t);
-                        } else {
-                            await DB.addTransaction(t);
-                        }
+                        await DB.addTransaction(t);
                     }
                     console.log('Synced transactions from server');
                 }
