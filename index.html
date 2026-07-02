@@ -20,13 +20,22 @@
         <header class="header">
             <div class="header-content">
                 <h1>Expense Tracker</h1>
-                <button id="settingsBtn" class="icon-btn" title="Settings">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
-                    </svg>
-                </button>
+                <div class="header-controls">
+                    <button id="syncBtn" class="icon-btn sync-btn" title="Sync data" style="display: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 4v6h6M23 20v-6h-6"></path>
+                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64M3.51 15A9 9 0 0 0 18.36 18.36"></path>
+                        </svg>
+                    </button>
+                    <button id="settingsBtn" class="icon-btn" title="Settings">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
+            <div id="offlineStatus" class="offline-status">● Online</div>
         </header>
 
         <main class="dashboard-main">

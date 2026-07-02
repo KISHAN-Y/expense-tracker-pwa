@@ -37,9 +37,17 @@ const API = {
     // Create transaction
     async createTransaction(transaction) {
         try {
+            // First, save to local DB
+            await DB.addTransaction(transaction);
+
+            if (!Utils.isOnline()) {
+                await DB.addToSyncQueue('CREATE', transaction);
+                return transaction;
+            }
+
             const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                 method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'CREATE', data: transaction })
             });
 
@@ -48,10 +56,13 @@ const API = {
             }
 
             const data = await response.json();
-            return data.success ? data.transaction : null;
+            if (data.success) {
+                await DB.markSynced(transaction.id);
+                return data.transaction;
+            }
+            throw new Error(data.error);
         } catch (error) {
             console.error('Error creating transaction:', error);
-            // Queue for sync if offline
             if (!Utils.isOnline()) {
                 await DB.addToSyncQueue('CREATE', transaction);
                 return transaction;
@@ -115,8 +126,12 @@ const API = {
         if (!Utils.isOnline()) return false;
 
         const queue = await DB.getSyncQueue();
-        if (queue.length === 0) return true;
+        if (queue.length === 0) {
+            UI.updateSyncStatus(true, 0);
+            return true;
+        }
 
+        UI.updateSyncStatus(false, queue.length);
         Utils.showLoading(true);
         let successCount = 0;
 
@@ -127,16 +142,34 @@ const API = {
 
                 switch (action) {
                     case 'CREATE':
-                        await this.createTransaction(data);
-                        success = true;
+                        const createResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'CREATE', data })
+                        });
+                        if (createResp.ok) {
+                            success = true;
+                        }
                         break;
                     case 'UPDATE':
-                        await this.updateTransaction(data);
-                        success = true;
+                        const updateResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'UPDATE', data })
+                        });
+                        if (updateResp.ok) {
+                            success = true;
+                        }
                         break;
                     case 'DELETE':
-                        await this.deleteTransaction(data.id);
-                        success = true;
+                        const deleteResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'DELETE', data })
+                        });
+                        if (deleteResp.ok) {
+                            success = true;
+                        }
                         break;
                 }
 
@@ -150,9 +183,10 @@ const API = {
         }
 
         Utils.showLoading(false);
+        UI.updateSyncStatus(true, 0);
 
         if (successCount > 0) {
-            Utils.showToast(`Synced ${successCount} transaction(s)`);
+            Utils.showToast(`✓ Synced ${successCount} transaction(s)`);
         }
 
         return successCount === queue.length;

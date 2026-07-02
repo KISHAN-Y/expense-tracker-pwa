@@ -15,6 +15,9 @@ const APP = {
             // Setup event listeners
             UI.setupEventListeners();
 
+            // Initialize offline status UI
+            UI.updateOfflineStatus();
+
             // Initialize form
             UI.initializeTransactionForm();
 
@@ -31,6 +34,12 @@ const APP = {
             // Setup form submission
             document.getElementById('transactionForm').addEventListener('submit', (e) => this.handleFormSubmit(e));
 
+            // Setup sync button
+            const syncBtn = document.getElementById('syncBtn');
+            if (syncBtn) {
+                syncBtn.addEventListener('click', () => UI.handleSyncClick());
+            }
+
             // Sync data periodically
             setInterval(() => {
                 if (Utils.isOnline()) {
@@ -38,14 +47,57 @@ const APP = {
                 }
             }, 30000); // Every 30 seconds
 
+            // Update offline status periodically
+            setInterval(() => {
+                this.updateSyncIndicators();
+            }, 5000); // Every 5 seconds
+
             // Handle online/offline
             window.addEventListener('online', () => this.handleOnline());
             window.addEventListener('offline', () => this.handleOffline());
+
+            // Handle URL parameters (for widgets)
+            this.handleUrlParams();
 
             console.log('App initialized successfully');
         } catch (error) {
             console.error('Failed to initialize app:', error);
             Utils.showToast('Failed to initialize app. Please refresh.');
+        }
+    },
+
+    // Handle URL parameters (from widget shortcuts)
+    handleUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const page = params.get('page');
+        const type = params.get('type');
+
+        if (page === 'addTransaction') {
+            UI.goToPage('addTransaction');
+            
+            if (type === 'income' || type === 'expense') {
+                // Set transaction type
+                const buttons = document.querySelectorAll('.toggle-btn');
+                buttons.forEach(btn => {
+                    if (btn.dataset.type === type) {
+                        btn.click();
+                    }
+                });
+            }
+        } else if (page === 'history') {
+            UI.goToPage('history');
+            UI.renderHistoryTransactions();
+        }
+    },
+
+    // Update sync indicators (offline status and sync queue counter)
+    async updateSyncIndicators() {
+        try {
+            UI.updateOfflineStatus();
+            const queue = await DB.getSyncQueue();
+            UI.updateSyncStatus(false, queue.length);
+        } catch (e) {
+            console.error('Error updating sync indicators:', e);
         }
     },
 
@@ -70,6 +122,7 @@ const APP = {
             // Update UI
             await UI.updateDashboardStats();
             await UI.renderRecentTransactions();
+            await this.updateSyncIndicators();
         } catch (error) {
             console.error('Error loading data:', error);
         }
@@ -240,14 +293,16 @@ const APP = {
     // Handle online
     async handleOnline() {
         console.log('Device is online');
-        Utils.showToast('Online. Syncing data...');
+        await this.updateSyncIndicators();
+        Utils.showToast('✓ Online. Syncing data...');
         await this.syncData();
     },
 
     // Handle offline
-    handleOffline() {
+    async handleOffline() {
         console.log('Device is offline');
-        Utils.showToast('You are offline. Changes will sync when online.');
+        await this.updateSyncIndicators();
+        Utils.showToast('⊘ Offline mode - Changes will sync when online');
     }
 };
 

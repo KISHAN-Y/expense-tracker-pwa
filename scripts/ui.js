@@ -329,7 +329,8 @@ const UI = {
 
         // Set default to income
         updateCategories('income');
-    },
+    
+        ,
 
     // Setup event listeners
     setupEventListeners() {
@@ -419,6 +420,11 @@ const UI = {
         searchInput?.addEventListener('input', applyFilters);
         dateFilter?.addEventListener('change', applyFilters);
         categoryFilter?.addEventListener('change', applyFilters);
+
+        // Sync button click
+        document.getElementById('syncBtn')?.addEventListener('click', async () => {
+            await this.handleSyncClick();
+        });
     },
 
     // Load theme preference
@@ -428,5 +434,71 @@ const UI = {
             document.documentElement.setAttribute('data-theme', 'dark');
             document.getElementById('darkModeToggle').checked = true;
         }
+    },
+
+    // Update offline status indicator
+    updateOfflineStatus() {
+        const isOnline = Utils.isOnline();
+        const statusIndicator = document.getElementById('offlineStatus');
+        const syncBtn = document.getElementById('syncBtn');
+        
+        if (!statusIndicator) return;
+
+        if (isOnline) {
+            statusIndicator.classList.remove('offline');
+            statusIndicator.innerHTML = '● Online';
+            if (syncBtn) syncBtn.style.display = 'none';
+        } else {
+            statusIndicator.classList.add('offline');
+            statusIndicator.innerHTML = '● Offline';
+            if (syncBtn) syncBtn.style.display = 'flex';
+        }
+    },
+
+    // Update sync button status
+    updateSyncStatus(synced, pendingCount) {
+        const syncBtn = document.getElementById('syncBtn');
+        if (!syncBtn) return;
+
+        if (!Utils.isOnline()) {
+            syncBtn.style.display = 'flex';
+            syncBtn.innerHTML = `<span class="sync-pending">${pendingCount} pending</span>`;
+            syncBtn.disabled = true;
+        } else if (pendingCount > 0) {
+            syncBtn.style.display = 'flex';
+            syncBtn.innerHTML = `Sync (${pendingCount})`;
+            syncBtn.disabled = false;
+        } else {
+            syncBtn.style.display = 'none';
+        }
+    },
+
+    // Handle sync button click
+    async handleSyncClick() {
+        const syncBtn = document.getElementById('syncBtn');
+        if (syncBtn) {
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '<span class="spinner"></span> Syncing...';
+        }
+
+        try {
+            const success = await API.syncQueue();
+            if (success) {
+                Utils.showToast('✓ All changes synced!');
+                await APP.loadData();
+            } else {
+                Utils.showToast('Some items failed to sync. Retry later.');
+            }
+        } catch (error) {
+            console.error('Sync error:', error);
+            Utils.showToast('Sync failed. Check your connection.');
+        } finally {
+            if (syncBtn) {
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = 'Sync';
+            }
+            this.updateSyncStatus(true, 0);
+        }
     }
 };
+

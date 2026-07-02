@@ -5,13 +5,13 @@
   "start_url": "/",
   "icons": [
     {
-      "src": "/assets/icon-192.svg",
+      "src": "assets/icon-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/assets/icon-512.svg",
+      "src": "assets/icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
@@ -19,22 +19,35 @@
   ],
   "shortcuts": [
     {
-      "name": "Add Transaction",
-      "short_name": "Add",
-      "description": "Quickly add a new transaction",
-      "url": "/?page=add",
+      "name": "Add Income Widget",
+      "short_name": "+ Income",
+      "description": "Directly record a new income source",
+      "url": "/?page=addTransaction&type=income",
       "icons": [
         {
-          "src": "/assets/icon-192.svg",
+          "src": "assets/icon-192.svg",
           "sizes": "192x192",
           "type": "image/svg+xml"
         }
       ]
     },
     {
-      "name": "View History",
+      "name": "Add Expense Widget",
+      "short_name": "- Expense",
+      "description": "Directly record a new expense source",
+      "url": "/?page=addTransaction&type=expense",
+      "icons": [
+        {
+          "src": "assets/icon-192.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "View History Widget",
       "short_name": "History",
-      "description": "View all your transactions",
+      "description": "View all historical transactions",
       "url": "/?page=history",
       "icons": [
         {
@@ -43,6 +56,18 @@
           "type": "image/svg+xml"
         }
       ]
+    }
+  ],
+  "display": "standalone",
+  "theme_color": "#4F46E5",
+  "background_color": "#FFFFFF",
+  "categories": ["finance", "productivity"],
+  "screenshots": [
+    {
+      "src": "/assets/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
     }
   ],
   "share_target": {
