@@ -26,13 +26,10 @@ function doOptions(e) {
     return createCorsResponse({ success: true });
 }
 
-// Helper function to add CORS headers
+// Helper function to create JSON response
 function createCorsResponse(data) {
     return ContentService.createTextOutput(JSON.stringify(data))
-        .setMimeType(ContentService.MimeType.JSON)
-        .addHeader('Access-Control-Allow-Origin', '*')
-        .addHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        .addHeader('Access-Control-Allow-Headers', 'Content-Type');
+        .setMimeType(ContentService.MimeType.JSON);
 }
 
 // GET - Return all transactions
@@ -118,6 +115,7 @@ function createTransaction(transaction) {
             new Date().toISOString()
         ];
         sheet.appendRow(row);
+        SpreadsheetApp.flush();
         
         return createCorsResponse({ 
             success: true, 
@@ -147,6 +145,7 @@ function updateTransaction(transaction) {
                     transaction.description || '',
                     data[i][6] // Keep original createdAt
                 ]]);
+                SpreadsheetApp.flush();
                 
                 return createCorsResponse({ 
                     success: true, 
@@ -172,6 +171,7 @@ function deleteTransaction(data) {
         for (let i = 1; i < sheetData.length; i++) {
             if (sheetData[i][0] === data.id) {
                 sheet.deleteRow(i + 1);
+                SpreadsheetApp.flush();
                 
                 return createCorsResponse({ 
                     success: true, 
