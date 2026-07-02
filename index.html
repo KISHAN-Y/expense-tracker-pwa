@@ -9,6 +9,9 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="assets/icon-192.svg">
     <link rel="apple-touch-icon" href="assets/icon-192.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
@@ -27,24 +30,31 @@
         </header>
 
         <main class="dashboard-main">
-            <!-- Cards -->
-            <div class="cards-container">
-                <div class="card income-card">
-                    <div class="card-header">Today's Income</div>
-                    <div class="card-amount" id="todayIncome">₹0</div>
-                    <div class="card-subtext">+3 transactions</div>
-                </div>
-
-                <div class="card expense-card">
-                    <div class="card-header">Today's Expense</div>
-                    <div class="card-amount danger" id="todayExpense">₹0</div>
-                    <div class="card-subtext">5 transactions</div>
-                </div>
-
-                <div class="card balance-card">
-                    <div class="card-header">Current Balance</div>
-                    <div class="card-amount" id="currentBalance">₹50,000</div>
-                    <div class="card-subtext">Total account balance</div>
+            <!-- Wallet Dashboard Hero -->
+            <div class="wallet-container">
+                <div class="wallet-card">
+                    <div class="wallet-glow"></div>
+                    <div class="wallet-card-header">
+                        <span class="wallet-label">Total Balance</span>
+                        <div class="wallet-chip"></div>
+                    </div>
+                    <div class="wallet-balance" id="currentBalance">₹0</div>
+                    <div class="wallet-stats">
+                        <div class="wallet-stat-item income">
+                            <span class="stat-icon">↑</span>
+                            <div>
+                                <span class="stat-label">Today's Income</span>
+                                <span class="stat-value" id="todayIncome">₹0</span>
+                            </div>
+                        </div>
+                        <div class="wallet-stat-item expense">
+                            <span class="stat-icon">↓</span>
+                            <div>
+                                <span class="stat-label">Today's Expense</span>
+                                <span class="stat-value" id="todayExpense">₹0</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -276,6 +286,7 @@
         <div class="spinner"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="scripts/config.js"></script>
     <script src="scripts/utils.js"></script>
     <script src="scripts/db.js"></script>

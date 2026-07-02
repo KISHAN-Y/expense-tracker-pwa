@@ -1,5 +1,6 @@
-// UI Management
 const UI = {
+    chartInstance: null,
+
     // Page navigation
     goToPage(pageName) {
         document.querySelectorAll('.page').forEach(page => {
@@ -160,7 +161,144 @@ const UI = {
         document.getElementById('todayIncome').textContent = Utils.formatCurrency(todayIncome);
         document.getElementById('todayExpense').textContent = Utils.formatCurrency(todayExpense);
         document.getElementById('currentBalance').textContent = Utils.formatCurrency(balance);
+        
+        await this.renderChart();
     },
+
+    // Render/update monthly chart using Chart.js
+    async renderChart() {
+        const ctx = document.getElementById('monthlyChart');
+        if (!ctx) return;
+
+        const transactions = await DB.getAllTransactions();
+        
+        // Group by month
+        const monthlyData = {};
+        transactions.forEach(t => {
+            try {
+                const dateObj = new Date(t.date);
+                if (isNaN(dateObj)) return;
+                const monthName = dateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                if (!monthlyData[monthName]) {
+                    monthlyData[monthName] = { income: 0, expense: 0 };
+                }
+                const amt = parseFloat(t.amount) || 0;
+                if (t.type === 'income') {
+                    monthlyData[monthName].income += amt;
+                } else {
+                    monthlyData[monthName].expense += amt;
+                }
+            } catch (e) {
+                console.error('Error parsing transaction date for chart:', e);
+            }
+        });
+
+        // Sort months chronologically
+        const sortedMonths = Object.keys(monthlyData).sort((a, b) => new Date(a) - new Date(b));
+        const incomes = sortedMonths.map(m => monthlyData[m].income);
+        const expenses = sortedMonths.map(m => monthlyData[m].expense);
+
+        // Clear existing chart instance to prevent canvas rendering conflicts
+        if (this.chartInstance) {
+            this.chartInstance.destroy();
+        }
+
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const textColor = isDark ? '#94a3b8' : '#64748b';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)';
+
+        this.chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedMonths,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomes,
+                        backgroundColor: '#10b981',
+                        borderRadius: 6,
+                        borderSkipped: false
+                    },
+                    {
+                        label: 'Expense',
+                        data: expenses,
+                        backgroundColor: '#f43f5e',
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: textColor,
+                            font: {
+                                family: 'Plus Jakarta Sans',
+                                weight: '600',
+                                size: 11
+                            },
+                            boxWidth: 10,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                        titleColor: isDark ? '#f8fafc' : '#0f172a',
+                        bodyColor: isDark ? '#94a3b8' : '#64748b',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 8,
+                        titleFont: {
+                            family: 'Plus Jakarta Sans',
+                            weight: '700',
+                            size: 12
+                        },
+                        bodyFont: {
+                            family: 'Plus Jakarta Sans',
+                            weight: '500',
+                            size: 11
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: textColor,
+                            font: {
+                                family: 'Plus Jakarta Sans',
+                                weight: '600',
+                                size: 10
+                            }
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: gridColor
+                        },
+                        ticks: {
+                            color: textColor,
+                            font: {
+                                family: 'Plus Jakarta Sans',
+                                weight: '600',
+                                size: 10
+                            },
+                            callback: function(value) {
+                                return '₹' + value.toLocaleString('en-IN');
+                            }
+                        }
+                    }
+                }
+            }
+        });
 
     // Initialize form
     initializeTransactionForm() {
@@ -229,6 +367,7 @@ const UI = {
             const isDark = darkModeToggle.checked;
             document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
             await DB.setSetting('darkMode', isDark);
+            await this.renderChart();
         });
 
         // Export button
