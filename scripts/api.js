@@ -37,17 +37,9 @@ const API = {
     // Create transaction
     async createTransaction(transaction) {
         try {
-            // First, save to local DB
-            await DB.addTransaction(transaction);
-
-            if (!Utils.isOnline()) {
-                await DB.addToSyncQueue('CREATE', transaction);
-                return transaction;
-            }
-
             const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({ action: 'CREATE', data: transaction })
             });
 
@@ -56,11 +48,7 @@ const API = {
             }
 
             const data = await response.json();
-            if (data.success) {
-                await DB.markSynced(transaction.id);
-                return data.transaction;
-            }
-            throw new Error(data.error);
+            return data.success ? data.transaction : null;
         } catch (error) {
             console.error('Error creating transaction:', error);
             if (!Utils.isOnline()) {
