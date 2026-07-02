@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Expense Tracker PWA - Track your income and expenses with offline support">
+    <meta name="theme-color" content="#4F46E5">
+    <title>Expense Tracker</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="assets/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <!-- Dashboard Page -->
+    <div id="dashboard" class="page active">
+        <header class="header">
+            <div class="header-content">
+                <h1>Expense Tracker</h1>
+                <button id="settingsBtn" class="icon-btn" title="Settings">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="dashboard-main">
+            <!-- Cards -->
+            <div class="cards-container">
+                <div class="card income-card">
+                    <div class="card-header">Today's Income</div>
+                    <div class="card-amount" id="todayIncome">₹0</div>
+                    <div class="card-subtext">+3 transactions</div>
+                </div>
+
+                <div class="card expense-card">
+                    <div class="card-header">Today's Expense</div>
+                    <div class="card-amount danger" id="todayExpense">₹0</div>
+                    <div class="card-subtext">5 transactions</div>
+                </div>
+
+                <div class="card balance-card">
+                    <div class="card-header">Current Balance</div>
+                    <div class="card-amount" id="currentBalance">₹50,000</div>
+                    <div class="card-subtext">Total account balance</div>
+                </div>
+            </div>
+
+            <!-- Monthly Overview -->
+            <div class="section">
+                <h2>Monthly Overview</h2>
+                <div class="card">
+                    <div class="chart-placeholder">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>Recent Transactions</h2>
+                    <a href="#history" class="link-btn">View All</a>
+                </div>
+                <div id="recentTransactions" class="transactions-list">
+                    <div class="empty-state">
+                        <p>No transactions yet. Start tracking!</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Floating Action Button -->
+        <button id="addBtn" class="fab" title="Add Transaction">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Add Transaction Page -->
+    <div id="addTransaction" class="page">
+        <header class="header">
+            <button id="backFromAddBtn" class="icon-btn" title="Back">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h1>Add Transaction</h1>
+            <div></div>
+        </header>
+
+        <main class="form-container">
+            <form id="transactionForm">
+                <!-- Type Toggle -->
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn active income-mode" data-type="income">Income</button>
+                    <button type="button" class="toggle-btn expense-mode" data-type="expense">Expense</button>
+                </div>
+
+                <!-- Amount Input -->
+                <div class="form-group">
+                    <label for="amount">Amount</label>
+                    <div class="amount-input-wrapper">
+                        <span class="currency">₹</span>
+                        <input type="number" id="amount" placeholder="0.00" step="0.01" min="0" required>
+                    </div>
+                </div>
+
+                <!-- Category -->
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" required>
+                        <option value="">Select category</option>
+                        <option value="Salary">Salary</option>
+                        <option value="Freelance">Freelance</option>
+                        <option value="Business">Business</option>
+                    </select>
+                </div>
+
+                <!-- Description -->
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <input type="text" id="description" placeholder="Enter description" maxlength="100">
+                </div>
+
+                <!-- Date -->
+                <div class="form-group">
+                    <label for="date">Date</label>
+                    <input type="date" id="date" required>
+                </div>
+
+                <!-- Buttons -->
+                <div class="form-actions">
+                    <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Transaction</button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <!-- History Page -->
+    <div id="history" class="page">
+        <header class="header">
+            <button id="backFromHistoryBtn" class="icon-btn" title="Back">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h1>History</h1>
+            <div></div>
+        </header>
+
+        <main class="page-main">
+            <!-- Filters -->
+            <div class="filters-container">
+                <input type="search" id="searchInput" placeholder="Search transactions..." class="filter-input">
+                <select id="dateFilter" class="filter-input">
+                    <option value="">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+                <select id="categoryFilter" class="filter-input">
+                    <option value="">All Categories</option>
+                    <option value="Food">Food</option>
+                    <option value="Travel">Travel</option>
+                    <option value="Fuel">Fuel</option>
+                </select>
+            </div>
+
+            <!-- Transactions List -->
+            <div id="historyTransactions" class="transactions-list">
+                <div class="empty-state">
+                    <p>No transactions found</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Page -->
+    <div id="settings" class="page">
+        <header class="header">
+            <button id="backFromSettingsBtn" class="icon-btn" title="Back">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h1>Settings</h1>
+            <div></div>
+        </header>
+
+        <main class="page-main">
+            <div class="settings-section">
+                <h2>Appearance</h2>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>Dark Mode</span>
+                        <span class="setting-description">Enable dark theme</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="darkModeToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>Preferences</h2>
+                <div class="setting-item">
+                    <label for="currencySelect" class="setting-label">
+                        <span>Currency</span>
+                        <span class="setting-description">Select your currency</span>
+                    </label>
+                    <select id="currencySelect">
+                        <option value="INR">₹ Indian Rupee</option>
+                        <option value="USD">$ US Dollar</option>
+                        <option value="EUR">€ Euro</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>Data</h2>
+                <button id="exportBtn" class="btn btn-secondary full-width">Export as CSV</button>
+                <button id="backupBtn" class="btn btn-secondary full-width">Backup to Cloud</button>
+            </div>
+
+            <div class="settings-section">
+                <h2>About</h2>
+                <div class="setting-item">
+                    <span>Expense Tracker PWA v1.0.0</span>
+                    <p class="setting-description">A modern progressive web app for tracking your finances</p>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <button id="installBtn" class="btn btn-primary full-width" style="display:none;">Install App</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-page="dashboard">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            </svg>
+            <span>Home</span>
+        </button>
+        <button class="nav-item" data-page="history">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                <path d="M3 21v-5h5"></path>
+            </svg>
+            <span>History</span>
+        </button>
+        <button class="nav-item" data-page="settings">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m5.08-5.08l4.24-4.24"></path>
+            </svg>
+            <span>Settings</span>
+        </button>
+    </nav>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-indicator">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="scripts/config.js"></script>
+    <script src="scripts/utils.js"></script>
+    <script src="scripts/db.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script src="scripts/app.js"></script>
+</body>
+</html>
