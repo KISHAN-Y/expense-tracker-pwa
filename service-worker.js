@@ -128,8 +128,8 @@ self.addEventListener('push', (event) => {
     const data = event.data.json();
     const options = {
         body: data.body,
-        icon: '/assets/icon-192.png',
-        badge: '/assets/icon-96.png',
+        icon: '/assets/icon-192.svg',
+        badge: '/assets/icon-192.svg',
         tag: data.tag || 'expense-tracker',
         requireInteraction: false
     };

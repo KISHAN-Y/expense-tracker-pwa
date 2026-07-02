@@ -39,7 +39,7 @@ const API = {
         try {
             const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({ action: 'CREATE', data: transaction })
             });
 
@@ -64,8 +64,8 @@ const API = {
     async updateTransaction(transaction) {
         try {
             const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({ action: 'UPDATE', data: transaction })
             });
 
@@ -89,8 +89,8 @@ const API = {
     async deleteTransaction(id) {
         try {
             const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify({ action: 'DELETE', data: { id } })
             });
 
