@@ -2,7 +2,7 @@
   "name": "Spendly PWA",
   "short_name": "Spendly",
   "description": "A modern Progressive Web App for tracking income and expenses with offline support",
-  "start_url": "/",
+  "start_url": "./",
   "icons": [
     {
       "src": "assets/Spendlyst.svg",
@@ -22,7 +22,7 @@
       "name": "Add Income Widget",
       "short_name": "+ Income",
       "description": "Directly record a new income source",
-      "url": "/?page=addTransaction&type=income",
+      "url": "./?page=addTransaction&type=income",
       "icons": [
         {
           "src": "assets/icon-192.svg",
@@ -35,7 +35,7 @@
       "name": "Add Expense Widget",
       "short_name": "- Expense",
       "description": "Directly record a new expense source",
-      "url": "/?page=addTransaction&type=expense",
+      "url": "./?page=addTransaction&type=expense",
       "icons": [
         {
           "src": "assets/icon-192.svg",
@@ -48,10 +48,10 @@
       "name": "View History Widget",
       "short_name": "History",
       "description": "View all historical transactions",
-      "url": "/?page=history",
+      "url": "./?page=history",
       "icons": [
         {
-          "src": "/assets/icon-192.svg",
+          "src": "assets/icon-192.svg",
           "sizes": "192x192",
           "type": "image/svg+xml"
         }
@@ -67,14 +67,14 @@
   ],
   "screenshots": [
     {
-      "src": "/assets/icon-512.svg",
+      "src": "assets/icon-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "form_factor": "narrow"
     }
   ],
   "share_target": {
-    "action": "/share",
+    "action": "./share",
     "method": "POST",
     "enctype": "application/x-www-form-urlencoded",
     "params": {
@@ -85,7 +85,7 @@
   },
   "file_handlers": [
     {
-      "action": "/open-csv",
+      "action": "./open-csv",
       "accept": {
         "text/csv": [
           ".csv"
@@ -96,7 +96,7 @@
   "protocol_handlers": [
     {
       "protocol": "web+expenses",
-      "url": "/handle-protocol?url=%s"
+      "url": "./handle-protocol?url=%s"
     }
   ]
 }

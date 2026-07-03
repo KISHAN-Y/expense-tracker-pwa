@@ -1,15 +1,15 @@
 const CACHE_NAME = 'expense-tracker-v16';
 const urlsToCache = [
-    '/',
-    '/index.html',
-    '/styles/main.css',
-    '/scripts/config.js',
-    '/scripts/utils.js',
-    '/scripts/db.js',
-    '/scripts/api.js',
-    '/scripts/ui.js',
-    '/scripts/app.js',
-    '/manifest.json'
+    './',
+    './index.html',
+    './styles/main.css',
+    './scripts/config.js',
+    './scripts/utils.js',
+    './scripts/db.js',
+    './scripts/api.js',
+    './scripts/ui.js',
+    './scripts/app.js',
+    './manifest.json'
 ];
 
 // Install event
@@ -99,7 +99,7 @@ self.addEventListener('fetch', (event) => {
             })
             .catch(() => {
                 // Return offline page if available
-                return caches.match('/index.html');
+                return caches.match('./index.html');
             })
     );
 });
@@ -128,8 +128,8 @@ self.addEventListener('push', (event) => {
     const data = event.data.json();
     const options = {
         body: data.body,
-        icon: '/assets/icon-192.svg',
-        badge: '/assets/icon-192.svg',
+        icon: 'assets/icon-192.svg',
+        badge: 'assets/icon-192.svg',
         tag: data.tag || 'expense-tracker',
         requireInteraction: false
     };
@@ -167,7 +167,7 @@ self.addEventListener('notificationclick', (event) => {
                 }
             }
             if (self.clients.openWindow) {
-                return self.clients.openWindow('/');
+                return self.clients.openWindow('./');
             }
         })
     );
