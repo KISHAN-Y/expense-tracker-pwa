@@ -119,7 +119,7 @@ async function setRecurringTransaction(transaction, frequency) {
             active: true
         }
     };
-    await DB.setSetting(`recurring_${transaction.id}`, recurring);
+    await DB.setSetting(`recurring_₹{transaction.id}`, recurring);
 }
 
 // Process recurring transactions
@@ -203,11 +203,11 @@ async function checkBudgetNotification() {
     const status = await checkBudgetStatus();
     if (status.percentage > 100) {
         sendNotification('Budget Alert!', {
-            body: `You've exceeded your monthly budget by ₹${Math.abs(status.remaining).toFixed(2)}`
+            body: `You've exceeded your monthly budget by ₹₹{Math.abs(status.remaining).toFixed(2)}`
         });
     } else if (status.percentage > 80) {
         sendNotification('Budget Warning', {
-            body: `You've used ${status.percentage.toFixed(0)}% of your monthly budget`
+            body: `You've used ₹{status.percentage.toFixed(0)}% of your monthly budget`
         });
     }
 }
@@ -241,7 +241,7 @@ async function exportDataAsJSON() {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `expense-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `expense-tracker-backup-₹{new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
 }
@@ -382,7 +382,7 @@ DEFAULT_CURRENCY: 'USD',  // Change from 'INR' to any supported currency
 
 CURRENCIES: {
     INR: { symbol: '₹', name: 'Indian Rupee' },
-    USD: { symbol: '$', name: 'US Dollar' },
+    USD: { symbol: '₹', name: 'US Dollar' },
     EUR: { symbol: '€', name: 'Euro' },
     GBP: { symbol: '£', name: 'British Pound' }  // Add more
 }

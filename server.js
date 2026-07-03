@@ -54,8 +54,8 @@ server.listen(PORT, () => {
     console.log(`║  🚀 Expense Tracker PWA Server Running     ║`);
     console.log(`╚════════════════════════════════════════════╝`);
     console.log(`\n✨ Open in your browser:\n`);
-    console.log(`   🌐 http://localhost:${PORT}`);
-    console.log(`   📱 http://localhost:${PORT}/index.html\n`);
+    console.log(`   🌐 http://localhost:₹{PORT}`);
+    console.log(`   📱 http://localhost:₹{PORT}/index.html\n`);
     console.log(`✅ Features available:\n`);
     console.log(`   • Dashboard - View today's stats`);
     console.log(`   • Add Transaction - Create new entry`);
@@ -64,7 +64,7 @@ server.listen(PORT, () => {
     console.log(`   • Offline mode - Works without internet`);
     console.log(`   • Service Worker - Caching enabled\n`);
     console.log(`📝 How to use locally:\n`);
-    console.log(`   1. Open http://localhost:${PORT} in your browser`);
+    console.log(`   1. Open http://localhost:₹{PORT} in your browser`);
     console.log(`   2. Add a transaction`);
     console.log(`   3. Go offline (DevTools → Network → Offline)`);
     console.log(`   4. Add another transaction`);

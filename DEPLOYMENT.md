@@ -298,12 +298,12 @@ async function trackError(error) {
 // Track page views
 function trackPageView(pageName) {
     // Send to analytics
-    console.log(`Page view: ${pageName}`);
+    console.log(`Page view: ₹{pageName}`);
 }
 
 // Track transactions
 function trackTransaction(type, amount) {
-    console.log(`Transaction: ${type} - ${amount}`);
+    console.log(`Transaction: ₹{type} - ₹{amount}`);
 }
 ```
 

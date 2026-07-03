@@ -23,7 +23,7 @@ const API = {
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ${response.statusText}`);
+                throw new Error(`API Error: ₹{response.statusText}`);
             }
 
             const data = await response.json();
@@ -44,7 +44,7 @@ const API = {
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ${response.statusText}`);
+                throw new Error(`API Error: ₹{response.statusText}`);
             }
 
             const data = await response.json();
@@ -69,7 +69,7 @@ const API = {
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ${response.statusText}`);
+                throw new Error(`API Error: ₹{response.statusText}`);
             }
 
             const data = await response.json();
@@ -94,7 +94,7 @@ const API = {
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ${response.statusText}`);
+                throw new Error(`API Error: ₹{response.statusText}`);
             }
 
             const data = await response.json();
@@ -174,7 +174,7 @@ const API = {
         UI.updateSyncStatus(true, 0);
 
         if (successCount > 0) {
-            Utils.showToast(`✓ Synced ${successCount} transaction(s)`);
+            Utils.showToast(`✓ Synced ₹{successCount} transaction(s)`);
         }
 
         return successCount === queue.length;

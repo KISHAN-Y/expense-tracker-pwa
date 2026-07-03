@@ -1,4 +1,4 @@
-const CACHE_NAME = 'expense-tracker-v2';
+const CACHE_NAME = 'expense-tracker-v16';
 const urlsToCache = [
     '/',
     '/index.html',
@@ -49,7 +49,7 @@ self.addEventListener('fetch', (event) => {
     const { request } = event;
 
     // Skip cross-origin requests
-    if (!request.url.startsWith(self.location.origin) && 
+    if (!request.url.startsWith(self.location.origin) &&
         !request.url.includes('script.google.com')) {
         return;
     }
@@ -139,6 +139,22 @@ self.addEventListener('push', (event) => {
     );
 });
 
+// Handle system notification messages (Screen ON or OFF)
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+        const title = event.data.title || 'Expense Tracker 💰';
+        const options = {
+            body: event.data.body || 'Time to add your recent income & expenses!',
+            icon: 'assets/icon-192.svg',
+            badge: 'assets/icon-192.svg',
+            vibrate: [200, 100, 200],
+            tag: event.data.tag || '3hour-reminder',
+            requireInteraction: false
+        };
+        event.waitUntil(self.registration.showNotification(title, options));
+    }
+});
+
 // Handle notifications click
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
@@ -146,7 +162,7 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(
         self.clients.matchAll({ type: 'window' }).then((clients) => {
             for (const client of clients) {
-                if (client.url === '/' && 'focus' in client) {
+                if (client.url.includes('localhost') || client.url === '/' && 'focus' in client) {
                     return client.focus();
                 }
             }
@@ -156,3 +172,4 @@ self.addEventListener('notificationclick', (event) => {
         })
     );
 });
+

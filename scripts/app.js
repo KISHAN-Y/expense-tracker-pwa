@@ -24,15 +24,21 @@ const APP = {
             // Load initial data
             await this.loadData();
 
-            // Register service worker
+            // Register service worker & initialize 3-hour notification reminders
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('service-worker.js')
-                    .then(reg => console.log('Service Worker registered'))
+                    .then(reg => {
+                        console.log('Service Worker registered');
+                        Utils.init3HourReminder();
+                    })
                     .catch(err => console.log('Service Worker registration failed:', err));
+            } else {
+                Utils.init3HourReminder();
             }
 
-            // Setup form submission
-            document.getElementById('transactionForm').addEventListener('submit', (e) => this.handleFormSubmit(e));
+            // Setup form submission (legacy form, may not exist)
+            const txForm = document.getElementById('transactionForm');
+            if (txForm) txForm.addEventListener('submit', (e) => this.handleFormSubmit(e));
 
             // Setup sync button
             const syncBtn = document.getElementById('syncBtn');
@@ -140,9 +146,55 @@ const APP = {
         }
     },
 
-    // Handle form submission
+    // Handle form submission from new expense/income pages
+    async handleTxFormSubmit(type) {
+        const amountId     = type === 'expense' ? 'expenseAmount'      : 'incomeAmount';
+        const categoryId   = type === 'expense' ? 'expenseCategory'    : 'incomeCategory';
+        const descId       = type === 'expense' ? 'expenseDescription' : 'incomeDescription';
+        const dateId       = type === 'expense' ? 'expenseDate'        : 'incomeDate';
+
+        const amount   = parseFloat(document.getElementById(amountId)?.value);
+        const category = document.getElementById(categoryId)?.value;
+        const desc     = document.getElementById(descId)?.value || '';
+        const date     = document.getElementById(dateId)?.value;
+
+        if (!Utils.validateAmount(amount)) { Utils.showToast('Please enter a valid amount'); return; }
+        if (!category)                     { Utils.showToast('Please select a category'); return; }
+        if (!date)                         { Utils.showToast('Please select a date'); return; }
+
+        Utils.showLoading(true);
+        try {
+            const transaction = { id: Utils.generateId(), type, amount: amount.toString(), category, description: desc, date };
+
+            await DB.addTransaction(transaction);
+            if (Utils.isOnline()) {
+                await API.createTransaction(transaction);
+            } else {
+                await DB.addToSyncQueue('CREATE', transaction);
+            }
+
+            Utils.showLoading(false);
+            await Utils.showSuccessModal(1400);
+            await this.loadData();
+            UI.goToPage('dashboard');
+        } catch (err) {
+            console.error('Error saving transaction:', err);
+            Utils.showToast('Failed to save transaction');
+        } finally {
+            Utils.showLoading(false);
+        }
+    },
+
+    // Handle legacy form submission (old transactionForm, kept for compatibility)
     async handleFormSubmit(e) {
         e.preventDefault();
+        const typeBtn = document.querySelector('.toggle-btn.active');
+        if (!typeBtn) return;
+        await this.handleTxFormSubmit(typeBtn.dataset.type);
+    },
+
+    // Handle form submission
+    async _handleFormSubmitOld(e) {
 
         const type = document.querySelector('.toggle-btn.active').dataset.type;
         const amount = parseFloat(document.getElementById('amount').value);
