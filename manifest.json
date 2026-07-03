@@ -1,17 +1,17 @@
 {
-  "name": "Expense Tracker PWA",
-  "short_name": "Expense Tracker",
+  "name": "Spendly PWA",
+  "short_name": "Spendly",
   "description": "A modern Progressive Web App for tracking income and expenses with offline support",
   "start_url": "/",
   "icons": [
     {
-      "src": "assets/icon-192.svg",
+      "src": "assets/Spendlyst.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "assets/icon-512.svg",
+      "src": "assets/Spendlyst.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
@@ -61,7 +61,10 @@
   "display": "standalone",
   "theme_color": "#4F46E5",
   "background_color": "#FFFFFF",
-  "categories": ["finance", "productivity"],
+  "categories": [
+    "finance",
+    "productivity"
+  ],
   "screenshots": [
     {
       "src": "/assets/icon-512.svg",
@@ -84,7 +87,9 @@
     {
       "action": "/open-csv",
       "accept": {
-        "text/csv": [".csv"]
+        "text/csv": [
+          ".csv"
+        ]
       }
     }
   ],

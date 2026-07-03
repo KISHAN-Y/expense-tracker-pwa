@@ -79,17 +79,7 @@ const APP = {
         const type = params.get('type');
 
         if (page === 'addTransaction') {
-            UI.goToPage('addTransaction');
-            
-            if (type === 'income' || type === 'expense') {
-                // Set transaction type
-                const buttons = document.querySelectorAll('.toggle-btn');
-                buttons.forEach(btn => {
-                    if (btn.dataset.type === type) {
-                        btn.click();
-                    }
-                });
-            }
+            UI.goToPage(type === 'income' ? 'addIncome' : 'addExpense');
         } else if (page === 'history') {
             UI.goToPage('history');
             UI.renderHistoryTransactions();
@@ -128,6 +118,9 @@ const APP = {
             // Update UI
             await UI.updateDashboardStats();
             await UI.renderRecentTransactions();
+            if (document.querySelector('.page.active')?.id === 'history') {
+                await UI.renderHistoryTransactions();
+            }
             await this.updateSyncIndicators();
         } catch (error) {
             console.error('Error loading data:', error);
@@ -153,7 +146,8 @@ const APP = {
         const descId       = type === 'expense' ? 'expenseDescription' : 'incomeDescription';
         const dateId       = type === 'expense' ? 'expenseDate'        : 'incomeDate';
 
-        const amount   = parseFloat(document.getElementById(amountId)?.value);
+        const amountRaw = UI.sanitizeAmountInput(document.getElementById(amountId)?.value);
+        const amount   = parseFloat(amountRaw);
         const category = document.getElementById(categoryId)?.value;
         const desc     = document.getElementById(descId)?.value || '';
         const date     = document.getElementById(dateId)?.value;
@@ -164,17 +158,35 @@ const APP = {
 
         Utils.showLoading(true);
         try {
-            const transaction = { id: Utils.generateId(), type, amount: amount.toString(), category, description: desc, date };
+            const isEditing = Boolean(this.editingTransactionId);
+            const transaction = {
+                id: this.editingTransactionId || Utils.generateId(),
+                type,
+                amount: amountRaw,
+                category,
+                description: desc,
+                date
+            };
 
-            await DB.addTransaction(transaction);
-            if (Utils.isOnline()) {
-                await API.createTransaction(transaction);
+            if (isEditing) {
+                await DB.updateTransaction(transaction);
+                if (Utils.isOnline()) {
+                    await API.updateTransaction(transaction);
+                } else {
+                    await DB.addToSyncQueue('UPDATE', transaction);
+                }
+                this.editingTransactionId = null;
             } else {
-                await DB.addToSyncQueue('CREATE', transaction);
+                await DB.addTransaction(transaction);
+                if (Utils.isOnline()) {
+                    await API.createTransaction(transaction);
+                } else {
+                    await DB.addToSyncQueue('CREATE', transaction);
+                }
             }
 
             Utils.showLoading(false);
-            await Utils.showSuccessModal(1400);
+            await Utils.showSuccessModal(1200);
             await this.loadData();
             UI.goToPage('dashboard');
         } catch (err) {
@@ -184,7 +196,6 @@ const APP = {
             Utils.showLoading(false);
         }
     },
-
     // Handle legacy form submission (old transactionForm, kept for compatibility)
     async handleFormSubmit(e) {
         e.preventDefault();
@@ -287,33 +298,44 @@ const APP = {
                 return;
             }
 
-            // Populate form
+            const type = transaction.type === 'income' ? 'income' : 'expense';
+            const amountInput = document.getElementById(`${type}Amount`);
+            const amountDisplay = document.getElementById(`${type}AmountDisplay`);
+            const descriptionInput = document.getElementById(`${type}Description`);
+            const dateInput = document.getElementById(`${type}Date`);
+            const dateTrigger = document.getElementById(`${type}DateTrigger`);
+            const dateText = document.getElementById(`${type}DateText`);
+            const categoryInput = document.getElementById(`${type}Category`);
+            const categoryTrigger = document.getElementById(`${type}CategoryTrigger`);
+            const categoryText = document.getElementById(`${type}CategoryText`);
+
             this.editingTransactionId = id;
-            
-            document.querySelectorAll('.toggle-btn').forEach(btn => {
-                if (btn.dataset.type === transaction.type) {
-                    btn.click();
-                }
-            });
+            UI.closeFab();
+            UI.setupAmountInputs();
 
-            document.getElementById('amount').value = transaction.amount;
-            document.getElementById('category').value = transaction.category;
-            document.getElementById('description').value = transaction.description || '';
-            document.getElementById('date').value = transaction.date;
+            if (amountInput) amountInput.value = transaction.amount;
+            if (amountDisplay) {
+                amountDisplay.textContent = UI.formatAmountDraft(UI.sanitizeAmountInput(transaction.amount));
+                amountDisplay.style.fontSize = String(transaction.amount).length > 8 ? '40px' : String(transaction.amount).length > 6 ? '50px' : '64px';
+            }
+            if (descriptionInput) descriptionInput.value = transaction.description || '';
+            if (dateInput) dateInput.value = transaction.date;
+            if (dateTrigger && dateText) {
+                dateText.textContent = Utils.formatDate(transaction.date);
+                dateTrigger.classList.add('has-value');
+            }
+            if (categoryInput) categoryInput.value = transaction.category;
+            if (categoryTrigger && categoryText) {
+                categoryText.innerHTML = `<span>${UI.getCategoryEmoji(transaction.category, type)}</span> <span>${transaction.category}</span>`;
+                categoryTrigger.classList.add('has-value');
+            }
 
-            // Go to form
-            UI.goToPage('addTransaction');
-
-            // Scroll to form
-            setTimeout(() => {
-                document.querySelector('.form-container').scrollTop = 0;
-            }, 0);
+            UI.goToPage(type === 'income' ? 'addIncome' : 'addExpense');
         } catch (error) {
             console.error('Error editing transaction:', error);
             Utils.showToast('Failed to load transaction');
         }
     },
-
     // Delete transaction
     async deleteTransaction(id) {
         if (!confirm('Are you sure you want to delete this transaction?')) {

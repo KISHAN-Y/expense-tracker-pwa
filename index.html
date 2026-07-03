@@ -125,7 +125,7 @@
         <div class="tx-amount-section">
             <p class="tx-how-much">How much?</p>
             <div class="tx-amount-display" id="expenseAmountDisplay">₹0</div>
-            <input type="number" id="expenseAmount" class="tx-hidden-input" placeholder="0" min="0" step="0.01">
+            <input type="text" id="expenseAmount" class="tx-hidden-input" placeholder="0" inputmode="decimal" autocomplete="off">
         </div>
     </div>
 
@@ -170,7 +170,7 @@
         <div class="tx-amount-section">
             <p class="tx-how-much">How much?</p>
             <div class="tx-amount-display" id="incomeAmountDisplay">₹0</div>
-            <input type="number" id="incomeAmount" class="tx-hidden-input" placeholder="0" min="0" step="0.01">
+            <input type="text" id="incomeAmount" class="tx-hidden-input" placeholder="0" inputmode="decimal" autocomplete="off">
         </div>
     </div>
 
@@ -203,10 +203,13 @@
 <div id="history" class="page">
     <!-- Header -->
     <div class="txn-header">
-        <button class="month-selector" id="txnMonthBtn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-            <span id="txnMonthLabel">July</span>
-        </button>
+        <div class="txn-title-block">
+            <h1>Transaction</h1>
+            <button class="month-selector txn-month-selector" id="txnMonthBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                <span id="txnMonthLabel">July</span>
+            </button>
+        </div>
         <button class="filter-icon-btn" id="openFilterBtn" title="Filter">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <line x1="4" y1="6" x2="20" y2="6"/>
@@ -217,10 +220,41 @@
     </div>
 
     <main class="txn-main">
+        <section class="txn-overview">
+            <div class="txn-overview-card balance">
+                <span class="txn-overview-label">Net Flow</span>
+                <strong id="txnNetFlow">₹0</strong>
+            </div>
+            <div class="txn-overview-card">
+                <span class="txn-overview-label">Income</span>
+                <strong class="income" id="txnIncomeTotal">₹0</strong>
+            </div>
+            <div class="txn-overview-card">
+                <span class="txn-overview-label">Expense</span>
+                <strong class="expense" id="txnExpenseTotal">₹0</strong>
+            </div>
+        </section>
+
+        <div class="txn-search-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
+            </svg>
+            <input type="search" id="txnSearchInput" placeholder="Search transactions">
+        </div>
+
         <button class="report-banner" id="reportBannerBtn">
             <span>See your financial report</span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
+
+        <div class="txn-list-header">
+            <div>
+                <h2>All Transactions</h2>
+                <span id="txnResultCount">0 items</span>
+            </div>
+            <button class="txn-clear-search" id="txnClearSearchBtn">Clear</button>
+        </div>
+
         <div id="historyTransactions" class="txn-grouped-list">
             <div class="empty-state"><p>No transactions found</p></div>
         </div>
@@ -253,13 +287,8 @@
         </div>
         <div class="sheet-section">
             <h3 class="sheet-label">Category</h3>
-            <button class="category-picker" id="categoryPickerBtn">
-                <span>Choose Category</span>
-                <div class="picker-right">
-                    <span class="picker-count" id="selectedCatCount">0 Selected</span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
-            </button>
+            <div class="category-filter-grid" id="categoryFilterGroup"></div>
+            <p class="picker-count" id="selectedCatCount">0 Selected</p>
         </div>
         <button class="apply-btn" id="applyFilterBtn">Apply</button>
     </div>

@@ -3,6 +3,8 @@ const UI = {
     currentPeriod: 'today',
     fabOpen: false,
     activeCategoryType: 'expense',
+    selectedMonthIndex: new Date().getMonth(),
+    selectedYear: new Date().getFullYear(),
 
     // Calendar Picker State
     calState: {
@@ -15,7 +17,8 @@ const UI = {
     filter: {
         type: 'all',
         sort: 'newest',
-        categories: []
+        categories: [],
+        search: ''
     },
 
     // ─── Page Navigation ─────────────────────────────────────────────────────
@@ -312,6 +315,89 @@ const UI = {
         return Utils.formatShortDate(dateStr);
     },
 
+    escapeHTML(value) {
+        const div = document.createElement('div');
+        div.textContent = value ?? '';
+        return div.innerHTML;
+    },
+
+    getMonthName(index = this.selectedMonthIndex) {
+        return new Date(this.selectedYear, index, 1).toLocaleString('en-US', { month: 'long' });
+    },
+
+    isSelectedMonth(dateStr) {
+        const date = Utils.parseDate(dateStr);
+        return date.getFullYear() === this.selectedYear && date.getMonth() === this.selectedMonthIndex;
+    },
+
+    updateSelectedMonthLabels() {
+        const monthName = this.getMonthName();
+        const monthEl = document.getElementById('currentMonthLabel');
+        const txnMonthEl = document.getElementById('txnMonthLabel');
+        if (monthEl) monthEl.textContent = monthName;
+        if (txnMonthEl) txnMonthEl.textContent = monthName;
+
+        document.querySelectorAll('.month-picker-item').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.month === monthName);
+        });
+    },
+
+    transactionMatchesSearch(t) {
+        const query = this.filter.search.trim().toLowerCase();
+        if (!query) return true;
+
+        return [
+            t.category,
+            t.description,
+            t.type,
+            t.amount,
+            Utils.formatDate(t.date),
+            this.formatDateLabel(t.date)
+        ].some(value => String(value || '').toLowerCase().includes(query));
+    },
+
+    updateSelectedCatCount() {
+        const count = this.filter.categories.length;
+        const el = document.getElementById('selectedCatCount');
+        if (el) el.textContent = `${count} Selected`;
+    },
+
+    renderCategoryFilterOptions() {
+        const container = document.getElementById('categoryFilterGroup');
+        if (!container) return;
+
+        const categories = [...new Set([...CONFIG.EXPENSE_CATEGORIES, ...CONFIG.INCOME_CATEGORIES])];
+        container.innerHTML = categories.map(category => {
+            const active = this.filter.categories.includes(category) ? 'active' : '';
+            const icon = this.getCategoryEmoji(category, CONFIG.INCOME_CATEGORIES.includes(category) ? 'income' : 'expense');
+            return `<button class="category-filter-pill ${active}" data-category="${this.escapeHTML(category)}">${icon}<span>${this.escapeHTML(category)}</span></button>`;
+        }).join('');
+
+        this.updateSelectedCatCount();
+    },
+
+    updateTransactionOverview(transactions) {
+        const income = transactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+        const expense = transactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+        const net = income - expense;
+
+        const netEl = document.getElementById('txnNetFlow');
+        const incomeEl = document.getElementById('txnIncomeTotal');
+        const expenseEl = document.getElementById('txnExpenseTotal');
+
+        if (netEl) {
+            netEl.textContent = Utils.formatCurrency(net);
+            netEl.classList.toggle('income', net >= 0);
+            netEl.classList.toggle('expense', net < 0);
+        }
+        if (incomeEl) incomeEl.textContent = Utils.formatCurrency(income);
+        if (expenseEl) expenseEl.textContent = Utils.formatCurrency(expense);
+    },
+
     formatDateLabel(dateStr) {
         if (!dateStr) return '';
         const today = new Date();
@@ -325,25 +411,46 @@ const UI = {
         return Utils.formatShortDate(dateStr);
     },
 
+    sanitizeAmountInput(value) {
+        const normalized = String(value || '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
+        const firstDot = normalized.indexOf('.');
+        if (firstDot === -1) return normalized;
+
+        const whole = normalized.slice(0, firstDot);
+        const decimals = normalized.slice(firstDot + 1).replace(/\./g, '').slice(0, 2);
+        return `${whole}.${decimals}`;
+    },
+
+    formatAmountDraft(value, symbol = this._sym()) {
+        if (!value) return `${symbol}0`;
+
+        const hasDecimalPoint = value.includes('.');
+        const [wholeRaw, decimalRaw = ''] = value.split('.');
+        const wholeNumber = Number(wholeRaw || '0');
+        const whole = wholeNumber.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+        if (hasDecimalPoint) return `${symbol}${whole}.${decimalRaw}`;
+        return `${symbol}${whole}`;
+    },
+
     // ─── Wire amount input to live display ───────────────────────────────────
     setupAmountInputs() {
-        const symbol = (() => {
-            const cur = CONFIG.DEFAULT_CURRENCY;
-            return (CONFIG.CURRENCIES[cur] || CONFIG.CURRENCIES.INR || {symbol: '₹'}).symbol;
-        })();
+        const symbol = this._sym();
 
         const wire = (inputId, displayId) => {
             const input = document.getElementById(inputId);
             const display = document.getElementById(displayId);
-            if (!input || !display) return;
+            if (!input || !display || input.dataset.amountWired === 'true') return;
 
+            input.dataset.amountWired = 'true';
             display.addEventListener('click', () => input.focus());
 
             input.addEventListener('input', () => {
-                const val = parseFloat(input.value);
-                display.textContent = isNaN(val) ? `${symbol}0` : `${symbol}${val.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-                display.style.fontSize = input.value.length > 8 ? '40px' :
-                                         input.value.length > 6 ? '50px' : '64px';
+                const sanitized = this.sanitizeAmountInput(input.value);
+                if (input.value !== sanitized) input.value = sanitized;
+                display.textContent = this.formatAmountDraft(sanitized, symbol);
+                display.style.fontSize = sanitized.length > 8 ? '40px' :
+                                         sanitized.length > 6 ? '50px' : '64px';
             });
         };
 
@@ -354,10 +461,11 @@ const UI = {
     // ─── Render Recent Transactions on Dashboard ──────────────────────────────
     async renderRecentTransactions() {
         const container = document.getElementById('recentTransactions');
+        if (!container) return;
         const transactions = await DB.getAllTransactions();
 
         const recent = transactions
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .sort((a, b) => Utils.parseDate(b.date) - Utils.parseDate(a.date))
             .slice(0, 5);
 
         if (recent.length === 0) {
@@ -365,34 +473,41 @@ const UI = {
             return;
         }
 
-        container.innerHTML = recent.map(t => {
-            const catClass = this.getCategoryClass(t.category, t.type);
-            const emoji = this.getCategoryEmoji(t.category, t.type);
-            const formattedDate = Utils.formatDate(t.date) || this.formatShortDate(t.date);
-            const sign = t.type === 'income' ? '+' : '-';
-            const descText = t.description ? `${t.description} • ${formattedDate}` : formattedDate;
-
-            return `
-            <div class="transaction-item" onclick="APP.editTransaction('${t.id}')">
-                <div class="transaction-info">
-                    <div class="transaction-icon ${catClass}">${emoji}</div>
-                    <div class="transaction-details">
-                        <div class="transaction-category">${t.category}</div>
-                        <div class="transaction-date">${descText}</div>
-                    </div>
-                </div>
-                <div class="transaction-right">
-                    <span class="transaction-amount ${t.type}">${sign} ${Utils.formatCurrency(t.amount)}</span>
-                    <span class="transaction-time">${formattedDate}</span>
-                </div>
-            </div>`;
-        }).join('');
+        container.innerHTML = recent.map(t => this.renderTransactionItem(t)).join('');
     },
 
+    renderTransactionItem(t) {
+        const catClass = this.getCategoryClass(t.category, t.type);
+        const emoji = this.getCategoryEmoji(t.category, t.type);
+        const formattedDate = Utils.formatDate(t.date) || this.formatShortDate(t.date);
+        const sign = t.type === 'income' ? '+' : '-';
+        const descText = t.description ? `${this.escapeHTML(t.description)} • ${formattedDate}` : formattedDate;
+
+        return `
+        <div class="transaction-item" data-transaction-id="${this.escapeHTML(t.id)}" role="button" tabindex="0">
+            <div class="transaction-info">
+                <div class="transaction-icon ${catClass}">${emoji}</div>
+                <div class="transaction-details">
+                    <div class="transaction-category">${this.escapeHTML(t.category)}</div>
+                    <div class="transaction-date">${descText}</div>
+                </div>
+            </div>
+            <div class="transaction-right">
+                <span class="transaction-amount ${t.type}">${sign} ${Utils.formatCurrency(t.amount)}</span>
+                <span class="transaction-time">${formattedDate}</span>
+            </div>
+        </div>`;
+    },
     // ─── Render History with date grouping ───────────────────────────────────
     async renderHistoryTransactions() {
         const container = document.getElementById('historyTransactions');
+        if (!container) return;
+
         let transactions = await DB.getAllTransactions();
+        const monthTransactions = transactions.filter(t => this.isSelectedMonth(t.date));
+        this.updateTransactionOverview(monthTransactions);
+
+        transactions = monthTransactions.filter(t => this.transactionMatchesSearch(t));
 
         if (this.filter.type !== 'all') {
             transactions = transactions.filter(t => t.type === this.filter.type);
@@ -404,12 +519,20 @@ const UI = {
         switch (this.filter.sort) {
             case 'highest': transactions.sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount)); break;
             case 'lowest':  transactions.sort((a, b) => parseFloat(a.amount) - parseFloat(b.amount)); break;
-            case 'oldest':  transactions.sort((a, b) => new Date(a.date) - new Date(b.date)); break;
-            default:        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+            case 'oldest':  transactions.sort((a, b) => Utils.parseDate(a.date) - Utils.parseDate(b.date)); break;
+            default:        transactions.sort((a, b) => Utils.parseDate(b.date) - Utils.parseDate(a.date));
         }
 
+        const countEl = document.getElementById('txnResultCount');
+        if (countEl) countEl.textContent = `${transactions.length} item${transactions.length === 1 ? '' : 's'}`;
+
+        const clearBtn = document.getElementById('txnClearSearchBtn');
+        if (clearBtn) clearBtn.classList.toggle('visible', Boolean(this.filter.search.trim()));
+
         if (transactions.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No transactions found</p></div>';
+            const hasFilters = this.filter.search.trim() || this.filter.type !== 'all' || this.filter.categories.length > 0;
+            const message = hasFilters ? 'No matching transactions found' : `No transactions in ${this.getMonthName()}`;
+            container.innerHTML = `<div class="empty-state txn-empty"><p>${message}</p></div>`;
             return;
         }
 
@@ -420,43 +543,18 @@ const UI = {
         });
 
         const sortedDates = Object.keys(groups).sort((a, b) =>
-            this.filter.sort === 'oldest' ? new Date(a) - new Date(b) : new Date(b) - new Date(a)
+            this.filter.sort === 'oldest' ? Utils.parseDate(a) - Utils.parseDate(b) : Utils.parseDate(b) - Utils.parseDate(a)
         );
 
         container.innerHTML = sortedDates.map(date => {
-            const items = groups[date];
-            const dateLabel = this.formatDateLabel(date);
-            const itemsHtml = items.map(t => {
-                const catClass = this.getCategoryClass(t.category, t.type);
-                const emoji = this.getCategoryEmoji(t.category, t.type);
-                const sign = t.type === 'income' ? '+' : '-';
-                const formattedDate = Utils.formatDate(t.date) || this.formatShortDate(date);
-                const descText = t.description ? `${t.description} • ${formattedDate}` : formattedDate;
-
-                return `
-                <div class="transaction-item" onclick="APP.editTransaction('${t.id}')">
-                    <div class="transaction-info">
-                        <div class="transaction-icon ${catClass}">${emoji}</div>
-                        <div class="transaction-details">
-                            <div class="transaction-category">${t.category}</div>
-                            <div class="transaction-date">${descText}</div>
-                        </div>
-                    </div>
-                    <div class="transaction-right">
-                        <span class="transaction-amount ${t.type}">${sign} ${Utils.formatCurrency(t.amount)}</span>
-                        <span class="transaction-time">${formattedDate}</span>
-                    </div>
-                </div>`;
-            }).join('');
-
+            const itemsHtml = groups[date].map(t => this.renderTransactionItem(t)).join('');
             return `
             <div class="txn-date-group">
-                <div class="txn-date-label">${dateLabel}</div>
+                <div class="txn-date-label">${this.formatDateLabel(date)}</div>
                 <div class="transactions-list">${itemsHtml}</div>
             </div>`;
         }).join('');
     },
-
     // ─── Dashboard Stats ─────────────────────────────────────────────────────
     async updateDashboardStats() {
         const transactions = await DB.getAllTransactions();
@@ -475,11 +573,7 @@ const UI = {
         document.getElementById('totalIncome').textContent    = Utils.formatCurrency(totalIncome);
         document.getElementById('totalExpense').textContent   = Utils.formatCurrency(totalExpense);
 
-        const monthName = new Date().toLocaleString('en-US', { month: 'long' });
-        const monthEl    = document.getElementById('currentMonthLabel');
-        const txnMonthEl = document.getElementById('txnMonthLabel');
-        if (monthEl)    monthEl.textContent    = monthName;
-        if (txnMonthEl) txnMonthEl.textContent = monthName;
+        this.updateSelectedMonthLabels();
 
         await this.renderSpendHeatmap(this.currentPeriod);
     },
@@ -596,6 +690,21 @@ const UI = {
             });
         });
 
+        this.updateSelectedMonthLabels();
+        this.renderCategoryFilterOptions();
+
+        const openTransaction = e => {
+            const item = e.target.closest('.transaction-item[data-transaction-id]');
+            if (item) APP.editTransaction(item.dataset.transactionId);
+        };
+        document.getElementById('recentTransactions')?.addEventListener('click', openTransaction);
+        document.getElementById('historyTransactions')?.addEventListener('click', openTransaction);
+        document.getElementById('recentTransactions')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') openTransaction(e);
+        });
+        document.getElementById('historyTransactions')?.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') openTransaction(e);
+        });
         // FAB toggle
         document.getElementById('addBtn')?.addEventListener('click', () => {
             if (this.fabOpen) this.closeFab();
@@ -665,15 +774,11 @@ const UI = {
             const btn = e.target.closest('.month-picker-item');
             if (btn) {
                 const month = btn.dataset.month;
-                document.querySelectorAll('.month-picker-item').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-
-                const el1 = document.getElementById('currentMonthLabel');
-                const el2 = document.getElementById('txnMonthLabel');
-                if (el1) el1.textContent = month;
-                if (el2) el2.textContent = month;
-
+                const monthIndex = Array.from(document.querySelectorAll('.month-picker-item')).findIndex(item => item.dataset.month === month);
+                if (monthIndex >= 0) this.selectedMonthIndex = monthIndex;
+                this.updateSelectedMonthLabels();
                 this.closeCustomSheets();
+                if (document.querySelector('.page.active')?.id === 'history') this.renderHistoryTransactions();
             }
         });
 
@@ -757,7 +862,10 @@ const UI = {
         });
 
         // Transaction page filter
-        document.getElementById('openFilterBtn')?.addEventListener('click', () => this.openFilterSheet());
+        document.getElementById('openFilterBtn')?.addEventListener('click', () => {
+            this.renderCategoryFilterOptions();
+            this.openFilterSheet();
+        });
         document.getElementById('filterOverlay')?.addEventListener('click', () => this.closeFilterSheet());
 
         document.getElementById('filterByGroup')?.addEventListener('click', e => {
@@ -776,17 +884,45 @@ const UI = {
             this.filter.sort = pill.dataset.sort;
         });
 
+        document.getElementById('categoryFilterGroup')?.addEventListener('click', e => {
+            const pill = e.target.closest('.category-filter-pill');
+            if (!pill) return;
+            const category = pill.dataset.category;
+            if (this.filter.categories.includes(category)) {
+                this.filter.categories = this.filter.categories.filter(c => c !== category);
+            } else {
+                this.filter.categories.push(category);
+            }
+            pill.classList.toggle('active');
+            this.updateSelectedCatCount();
+        });
+
+        document.getElementById('txnSearchInput')?.addEventListener('input', Utils.debounce(e => {
+            this.filter.search = e.target.value;
+            this.renderHistoryTransactions();
+        }, 120));
+
+        document.getElementById('txnClearSearchBtn')?.addEventListener('click', () => {
+            this.filter.search = '';
+            const input = document.getElementById('txnSearchInput');
+            if (input) input.value = '';
+            this.renderHistoryTransactions();
+        });
+
+        document.getElementById('reportBannerBtn')?.addEventListener('click', () => {
+            Utils.showToast('Financial report coming soon');
+        });
+
         document.getElementById('applyFilterBtn')?.addEventListener('click', () => {
             this.closeFilterSheet();
             this.renderHistoryTransactions();
         });
 
         document.getElementById('resetFilterBtn')?.addEventListener('click', () => {
-            this.filter = { type: 'all', sort: 'newest', categories: [] };
+            this.filter = { type: 'all', sort: 'newest', categories: [], search: this.filter.search };
             document.querySelectorAll('#filterByGroup .pill').forEach((p,i) => p.classList.toggle('active', i===0));
             document.querySelectorAll('#sortByGroup .pill').forEach((p,i) => p.classList.toggle('active', i===2));
-            const el = document.getElementById('selectedCatCount');
-            if (el) el.textContent = '0 Selected';
+            this.renderCategoryFilterOptions();
         });
 
         // Dark mode
