@@ -7,6 +7,14 @@ const Utils = {
         const num = Number(amount) || 0;
         return `${currencyInfo.symbol}${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
     },
+    
+    // Escape HTML to prevent XSS
+    escapeHTML(str) {
+        if (!str) return '';
+        const p = document.createElement('p');
+        p.appendChild(document.createTextNode(str));
+        return p.innerHTML;
+    },
 
     // Robust date parser that handles ISO, YYYY-MM-DD, DD-MM-YYYY, timestamps, Date objects
     parseDate(dateVal) {

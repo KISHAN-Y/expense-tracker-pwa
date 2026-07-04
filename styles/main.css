@@ -1698,51 +1698,110 @@ select {
 }
 
 /* ============================================
-   TRANSACTION DETAIL SHEET
+   TRANSACTION DETAIL PAGE
    ============================================ */
-.txn-detail-content {
-    padding: 20px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+.detail-page-main {
+    background-color: var(--bg-color);
 }
 
-.txn-detail-row {
+.detail-hero-illustration {
+    margin-bottom: 8px;
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.detail-primary-card {
+    background-color: var(--card-bg);
+    width: 100%;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-}
-.txn-detail-row:last-child {
-    border-bottom: none;
+    margin-bottom: 16px;
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    border: 1px solid var(--border);
 }
 
-.txn-detail-label {
-    font-size: 14px;
+.detail-cat-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.detail-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background-color: var(--bg-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.detail-cat-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.detail-summary-card {
+    background-color: var(--card-bg);
+    width: 100%;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    border: 1px solid var(--border);
+}
+
+.detail-grid-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+.detail-grid-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.detail-row-label {
     color: var(--text-light);
+    font-size: 14px;
     font-weight: 500;
 }
 
-.txn-detail-value {
-    font-size: 16px;
-    font-weight: 700;
+.detail-row-val {
     color: var(--text-dark);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: right;
 }
 
-.txn-detail-actions {
-    display: flex;
-    gap: 12px;
-    padding: 0 24px 24px;
-    margin-top: auto;
-}
-
-.txn-detail-actions .btn {
-    flex: 1;
-    padding: 14px;
-    border-radius: 12px;
+.detail-primary-action-btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: 30px;
+    background-color: var(--text-dark); /* Dark pill button */
+    color: var(--bg-color);
     font-weight: 700;
     font-size: 16px;
+    border: none;
+    cursor: pointer;
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+.detail-danger-action-link {
+    color: #FF4B4B;
+    background: none;
+    border: none;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 8px;
+    cursor: pointer;
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
 }
 
 .btn-danger {

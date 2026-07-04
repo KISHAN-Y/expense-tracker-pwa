@@ -30,7 +30,7 @@ const UI = {
         if (navBtn) navBtn.classList.add('active');
 
         // Hide bottom nav + FAB on full-screen tx pages, show on all others
-        const fullScreenPages = ['addIncome', 'addExpense'];
+        const fullScreenPages = ['addIncome', 'addExpense', 'transactionDetail'];
         const isFullScreen = fullScreenPages.includes(pageName);
         const bottomNav = document.querySelector('.bottom-nav');
         const fabRoot   = document.getElementById('fabRoot');
@@ -86,7 +86,7 @@ const UI = {
         document.querySelectorAll('.custom-sheet').forEach(s => s.classList.remove('open'));
 
         const activePage = document.querySelector('.page.active');
-        const fullScreenPages = ['addIncome', 'addExpense'];
+        const fullScreenPages = ['addIncome', 'addExpense', 'transactionDetail'];
         const isFullScreen = activePage && fullScreenPages.includes(activePage.id);
 
         if (!isFullScreen) {
@@ -258,7 +258,7 @@ const UI = {
 
         // Restore bottom nav + FAB if not on a full-screen tx page
         const activePage = document.querySelector('.page.active');
-        const fullScreenPages = ['addIncome', 'addExpense'];
+        const fullScreenPages = ['addIncome', 'addExpense', 'transactionDetail'];
         const isFullScreen = activePage && fullScreenPages.includes(activePage.id);
 
         if (!isFullScreen) {
@@ -383,7 +383,7 @@ const UI = {
             .slice(0, 5);
 
         if (recent.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No transactions yet. Start tracking!</p></div>';
+            container.innerHTML = '<div class="empty-state"><lottie-player src="https://assets2.lottiefiles.com/packages/lf20_0s6tfbuc.json" background="transparent" speed="1" style="width: 150px; height: 150px; margin: 0 auto;" loop autoplay></lottie-player><p>No transactions yet. Start tracking!</p></div>';
             return;
         }
 
@@ -431,7 +431,7 @@ const UI = {
         }
 
         if (transactions.length === 0) {
-            container.innerHTML = '<div class="empty-state"><p>No transactions found</p></div>';
+            container.innerHTML = '<div class="empty-state"><lottie-player src="https://assets2.lottiefiles.com/packages/lf20_0s6tfbuc.json" background="transparent" speed="1" style="width: 150px; height: 150px; margin: 0 auto;" loop autoplay></lottie-player><p>No transactions found</p></div>';
             return;
         }
 
@@ -513,9 +513,9 @@ const UI = {
         if (!container) return;
 
         const transactions = await DB.getAllTransactions();
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        if (yearTitleEl) yearTitleEl.textContent = currentYear;
+        
+        // Update Title
+        if (yearTitleEl) yearTitleEl.textContent = 'Last 7 Days';
 
         const getLvl = (val, max) => {
             if (!val || val <= 0) return 0;
@@ -527,81 +527,67 @@ const UI = {
             return 4; // Dark Charcoal / Black tile
         };
 
-        const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+        const last7Days = [];
+        const dayLabels = [];
+        
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            last7Days.push(`${y}-${m}-${day}`);
+            dayLabels.push(d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase());
+        }
 
-        // Render 12 Month x 7 Row Matrix (Reference Image Design)
-        // Matrix data: 12 month columns, each with 7 intensity rows
-        const matrixData = Array.from({ length: 12 }, () => new Array(7).fill(0));
+        const matrixData = new Array(7).fill(0);
 
         transactions.filter(t => t.type === 'expense').forEach(t => {
-            const [y, m, d] = t.date.split('-').map(Number);
-            if (y === currentYear && m >= 1 && m <= 12) {
-                const monthIdx = m - 1;
-                const rowIdx = (d - 1) % 7;
-                matrixData[monthIdx][rowIdx] += parseFloat(t.amount);
+            const idx = last7Days.indexOf(t.date);
+            if (idx !== -1) {
+                matrixData[idx] += parseFloat(t.amount);
             }
         });
 
-        const flatVals = matrixData.flat();
-        const hasData = flatVals.some(v => v > 0);
+        const hasData = matrixData.some(v => v > 0);
 
         // Sample pattern matching the mockup image if no user data yet
         if (!hasData) {
-            const sampleMatrix = [
-                [75, 0, 45, 0, 15, 30, 25],   // JAN
-                [35, 90, 45, 0, 10, 50, 25],  // FEB
-                [20, 0, 30, 0, 60, 180, 64],  // MAR
-                [0, 0, 0, 0, 40, 75, 90],     // APR
-                [30, 0, 0, 25, 10, 20, 35],   // MAY
-                [0, 0, 0, 128, 0, 0, 0],      // JUN
-                [0, 25, 70, 190, 0, 10, 20],  // JUL
-                [25, 0, 85, 160, 55, 0, 0],   // AUG
-                [35, 75, 195, 110, 60, 75, 0],// SEP
-                [85, 160, 75, 80, 0, 30, 0],  // OCT
-                [45, 60, 35, 0, 0, 40, 0],    // NOV
-                [0, 70, 30, 0, 25, 195, 64]   // DEC
-            ];
-            for (let m = 0; m < 12; m++) {
-                for (let r = 0; r < 7; r++) {
-                    matrixData[m][r] = sampleMatrix[m][r];
-                }
+            const sampleMatrix = [15, 45, 0, 128, 60, 190, 64];
+            for (let r = 0; r < 7; r++) {
+                matrixData[r] = sampleMatrix[r];
             }
         }
 
-        const maxVal = Math.max(...matrixData.flat(), 1);
+        const maxVal = Math.max(...matrixData, 1);
 
-        let html = '<div class="hm-matrix-container">';
-        html += '<div class="hm-matrix-grid">';
+        let html = '<div class="hm-matrix-container" style="overflow-x: hidden;">';
+        html += '<div class="hm-matrix-grid" style="grid-template-columns: repeat(7, 1fr);">';
 
-        for (let col = 0; col < 12; col++) {
-            html += '<div class="hm-month-col">';
-            for (let row = 0; row < 7; row++) {
-                const val = matrixData[col][row];
-                const lvl = getLvl(val, maxVal);
-                const mName = monthNames[col];
-                const labelText = (val === 128 || val === 64) ? val : (val > 150 ? Math.round(val) : '');
-                const tipText = `${mName} Block ${row+1} • ${val > 0 ? Utils.formatCurrency(val) : 'No expense'}`;
-
-                html += `
-                <div class="hm-tile lvl-${lvl}" onclick="Utils.showToast('${tipText}')" title="${tipText}">
-                    ${labelText}
-                </div>`;
-            }
+        for (let col = 0; col < 7; col++) {
+            html += '<div class="hm-month-col" style="display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end;">';
+            const val = matrixData[col];
+            const lvl = getLvl(val, maxVal);
+            const labelText = (val > 0) ? Math.round(val) : '';
+            const tipText = `${dayLabels[col]} • ${val > 0 ? Utils.formatCurrency(val) : 'No expense'}`;
+            
+            html += `
+            <div class="hm-tile lvl-${lvl}" style="display: flex; align-items: center; justify-content: center; font-size: 14px; border-radius: 12px; transition: 0.2s; aspect-ratio: 1;" onclick="Utils.showToast('${tipText}')" title="${tipText}">
+                ${labelText}
+            </div>`;
+            
             html += '</div>';
         }
 
         html += '</div>';
 
-        // Month Labels Row (JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC)
-        const currentMonthIdx = now.getMonth();
-        html += '<div class="hm-month-labels-row">';
-        monthNames.forEach((mName, idx) => {
-            const activeClass = idx === currentMonthIdx ? 'active' : '';
-            html += `<span class="hm-month-col-label ${activeClass}">${mName}</span>`;
+        // Day Labels Row (MON TUE WED THU FRI SAT SUN)
+        html += '<div class="hm-month-labels-row" style="grid-template-columns: repeat(7, 1fr);">';
+        dayLabels.forEach((dName, idx) => {
+            const activeClass = idx === 6 ? 'active' : '';
+            html += `<span class="hm-month-col-label ${activeClass}" style="font-size: 11px;">${dName}</span>`;
         });
-        html += '</div>';
-
-        html += '</div>';
+        html += '</div></div>';
 
         container.innerHTML = html;
     },
@@ -681,18 +667,22 @@ const UI = {
         document.getElementById('cancelDeleteBtn')?.addEventListener('click', () => this.hideDeleteConfirmModal());
         document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => {
             this.hideDeleteConfirmModal();
-            this.closeCustomSheets();
+            this.goToPage('dashboard');
             if (this.currentDetailId) {
                 APP.deleteTransaction(this.currentDetailId);
             }
         });
 
-        document.getElementById('deleteTxnBtn')?.addEventListener('click', () => this.showDeleteConfirmModal());
-        document.getElementById('editTxnBtn')?.addEventListener('click', () => {
-            this.closeCustomSheets();
+        document.getElementById('detailDeleteBtn')?.addEventListener('click', () => this.showDeleteConfirmModal());
+        document.getElementById('detailEditBtn')?.addEventListener('click', () => {
             if (this.currentDetailId) {
                 APP.editTransaction(this.currentDetailId);
             }
+        });
+
+        // Detail Page Back Button
+        document.getElementById('backFromDetailBtn')?.addEventListener('click', () => {
+            this.goToPage('dashboard');
         });
 
         // Add expense/income triggers
@@ -877,6 +867,49 @@ const UI = {
                 }
             });
         }
+    },
+
+    // ─── Transaction Detail & Delete Modal ──────────────────────────────────
+    async showTransactionDetails(id) {
+        this.currentDetailId = id;
+        const transactions = await DB.getAllTransactions();
+        const t = transactions.find(x => x.id === id);
+        if (!t) return;
+        
+        const sign = t.type === 'income' ? '+' : '-';
+        const emoji = this.getCategoryEmoji(t.category, t.type);
+
+        document.getElementById('detailHeroTitle').textContent = t.type === 'income' ? 'Income' : 'Expense';
+        document.getElementById('detailHeroSubtitle').textContent = 'Transaction saved';
+        
+        document.getElementById('detailCatIcon').textContent = emoji;
+        document.getElementById('detailCatName').textContent = t.category;
+        
+        const amountEl = document.getElementById('detailAmount');
+        amountEl.textContent = sign + ' ' + Utils.formatCurrency(t.amount);
+        amountEl.style.color = t.type === 'income' ? 'var(--primary)' : 'var(--danger)';
+
+        document.getElementById('detailTypeVal').textContent = t.type;
+        document.getElementById('detailTypeVal').style.color = t.type === 'income' ? 'var(--primary)' : 'var(--danger)';
+        document.getElementById('detailDateVal').textContent = Utils.formatDate(t.date) || t.date;
+
+        const descRow = document.getElementById('detailDescRow');
+        if (t.description) {
+            document.getElementById('detailDescVal').innerHTML = Utils.escapeHTML(t.description);
+            descRow.style.display = 'flex';
+        } else {
+            descRow.style.display = 'none';
+        }
+
+        this.goToPage('transactionDetail');
+    },
+
+    showDeleteConfirmModal() {
+        document.getElementById('deleteConfirmOverlay')?.classList.add('visible');
+    },
+
+    hideDeleteConfirmModal() {
+        document.getElementById('deleteConfirmOverlay')?.classList.remove('visible');
     },
 
     // ─── Currency symbol helper ───────────────────────────────────────────────
