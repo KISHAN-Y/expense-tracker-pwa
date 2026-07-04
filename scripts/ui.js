@@ -340,8 +340,30 @@ const UI = {
             display.addEventListener('click', () => input.focus());
 
             input.addEventListener('input', () => {
-                const val = parseFloat(input.value);
-                display.textContent = isNaN(val) ? `${symbol}0` : `${symbol}${val.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+                let valStr = input.value;
+                if (!valStr) {
+                    display.textContent = `${symbol}0`;
+                    display.style.fontSize = '64px';
+                    return;
+                }
+                
+                // Allow trailing dot and zeros to be visible while typing
+                let formatted;
+                if (valStr.endsWith('.')) {
+                    const val = parseFloat(valStr);
+                    formatted = isNaN(val) ? `${symbol}0.` : `${symbol}${val.toLocaleString('en-US', { maximumFractionDigits: 2 })}.`;
+                } else if (valStr.endsWith('.0')) {
+                    const val = parseFloat(valStr);
+                    formatted = isNaN(val) ? `${symbol}0.0` : `${symbol}${val.toLocaleString('en-US', { maximumFractionDigits: 2 })}.0`;
+                } else if (valStr.endsWith('.00')) {
+                    const val = parseFloat(valStr);
+                    formatted = isNaN(val) ? `${symbol}0.00` : `${symbol}${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                } else {
+                    const val = parseFloat(valStr);
+                    formatted = isNaN(val) ? `${symbol}0` : `${symbol}${val.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+                }
+                
+                display.textContent = formatted;
                 display.style.fontSize = input.value.length > 8 ? '40px' :
                                          input.value.length > 6 ? '50px' : '64px';
             });
@@ -373,7 +395,7 @@ const UI = {
             const descText = t.description ? `${t.description} • ${formattedDate}` : formattedDate;
 
             return `
-            <div class="transaction-item" onclick="APP.editTransaction('${t.id}')">
+            <div class="transaction-item" onclick="UI.showTransactionDetails('${t.id}')">
                 <div class="transaction-info">
                     <div class="transaction-icon ${catClass}">${emoji}</div>
                     <div class="transaction-details">
@@ -434,7 +456,7 @@ const UI = {
                 const descText = t.description ? `${t.description} • ${formattedDate}` : formattedDate;
 
                 return `
-                <div class="transaction-item" onclick="APP.editTransaction('${t.id}')">
+                <div class="transaction-item" onclick="UI.showTransactionDetails('${t.id}')">
                     <div class="transaction-info">
                         <div class="transaction-icon ${catClass}">${emoji}</div>
                         <div class="transaction-details">
@@ -655,7 +677,25 @@ const UI = {
             }
         });
 
-        // Month Selector Triggers
+        // Delete Confirmation Modal
+        document.getElementById('cancelDeleteBtn')?.addEventListener('click', () => this.hideDeleteConfirmModal());
+        document.getElementById('confirmDeleteBtn')?.addEventListener('click', () => {
+            this.hideDeleteConfirmModal();
+            this.closeCustomSheets();
+            if (this.currentDetailId) {
+                APP.deleteTransaction(this.currentDetailId);
+            }
+        });
+
+        document.getElementById('deleteTxnBtn')?.addEventListener('click', () => this.showDeleteConfirmModal());
+        document.getElementById('editTxnBtn')?.addEventListener('click', () => {
+            this.closeCustomSheets();
+            if (this.currentDetailId) {
+                APP.editTransaction(this.currentDetailId);
+            }
+        });
+
+        // Add expense/income triggers
         const openMonthSheet = () => this.openCustomSheet('monthPickerSheet');
         document.getElementById('monthSelectorBtn')?.addEventListener('click', openMonthSheet);
         document.getElementById('txnMonthBtn')?.addEventListener('click', openMonthSheet);

@@ -164,16 +164,51 @@ const APP = {
 
         Utils.showLoading(true);
         try {
-            const transaction = { id: Utils.generateId(), type, amount: amount.toString(), category, description: desc, date };
+            const transaction = { type, amount: amount.toString(), category, description: desc, date };
 
-            await DB.addTransaction(transaction);
-            if (Utils.isOnline()) {
-                await API.createTransaction(transaction);
+            if (this.editingTransactionId) {
+                // Update existing
+                transaction.id = this.editingTransactionId;
+                await DB.updateTransaction(transaction);
+                
+                // Sync with server
+                if (Utils.isOnline()) {
+                    await API.updateTransaction(transaction);
+                } else {
+                    await DB.addToSyncQueue('UPDATE', transaction);
+                }
+                
+                Utils.showToast('Transaction updated');
+                this.editingTransactionId = null;
             } else {
-                await DB.addToSyncQueue('CREATE', transaction);
+                // Create new
+                transaction.id = Utils.generateId();
+                await DB.addTransaction(transaction);
+
+                // Sync with server
+                if (Utils.isOnline()) {
+                    await API.createTransaction(transaction);
+                } else {
+                    await DB.addToSyncQueue('CREATE', transaction);
+                }
+                
+                Utils.showToast('Transaction added');
             }
 
             Utils.showLoading(false);
+            
+            // Clear inputs
+            document.getElementById(amountId).value = '';
+            document.getElementById(`${type}AmountDisplay`).textContent = type === 'income' ? '+₹0' : '-₹0';
+            document.getElementById(categoryId).value = '';
+            document.getElementById(`${type}CategoryText`).textContent = 'Category';
+            document.getElementById(`${type}CategoryTrigger`).classList.remove('has-value');
+            document.getElementById(descId).value = '';
+            document.getElementById(dateId).value = '';
+            document.getElementById(`${type}DateText`).textContent = 'Select Date';
+            document.getElementById(`${type}DateTrigger`).classList.remove('has-value');
+
+            // Wait a little before changing UI to show the success modal properly
             await Utils.showSuccessModal(1400);
             await this.loadData();
             UI.goToPage('dashboard');
@@ -290,48 +325,46 @@ const APP = {
             // Populate form
             this.editingTransactionId = id;
             
-            document.querySelectorAll('.toggle-btn').forEach(btn => {
-                if (btn.dataset.type === transaction.type) {
-                    btn.click();
-                }
-            });
+            const type = transaction.type; // 'income' or 'expense'
+            
+            // Set values in the hidden inputs
+            document.getElementById(`${type}Amount`).value = transaction.amount;
+            document.getElementById(`${type}Category`).value = transaction.category;
+            document.getElementById(`${type}Description`).value = transaction.description || '';
+            document.getElementById(`${type}Date`).value = transaction.date;
 
-            document.getElementById('amount').value = transaction.amount;
-            document.getElementById('category').value = transaction.category;
-            document.getElementById('description').value = transaction.description || '';
-            document.getElementById('date').value = transaction.date;
+            // Trigger input event to format the display amount
+            document.getElementById(`${type}Amount`).dispatchEvent(new Event('input'));
+            
+            // Update custom triggers UI
+            const emoji = UI.getCategoryEmoji(transaction.category, type);
+            document.getElementById(`${type}CategoryText`).innerHTML = `<span>${emoji}</span> <span>${transaction.category}</span>`;
+            document.getElementById(`${type}CategoryTrigger`).classList.add('has-value');
+            
+            document.getElementById(`${type}DateText`).innerHTML = `<span>${Utils.formatDate(transaction.date)}</span>`;
+            document.getElementById(`${type}DateTrigger`).classList.add('has-value');
 
-            // Go to form
-            UI.goToPage('addTransaction');
+            // Navigate to the edit screen
+            UI.goToPage(type === 'income' ? 'addIncome' : 'addExpense');
 
-            // Scroll to form
-            setTimeout(() => {
-                document.querySelector('.form-container').scrollTop = 0;
-            }, 0);
         } catch (error) {
             console.error('Error editing transaction:', error);
             Utils.showToast('Failed to load transaction');
         }
     },
-
+    
     // Delete transaction
     async deleteTransaction(id) {
-        if (!confirm('Are you sure you want to delete this transaction?')) {
-            return;
-        }
-
+        Utils.showLoading(true);
         try {
-            Utils.showLoading(true);
-
             await DB.deleteTransaction(id);
-
-            // Sync with server
+            
             if (Utils.isOnline()) {
                 await API.deleteTransaction(id);
             } else {
                 await DB.addToSyncQueue('DELETE', { id });
             }
-
+            
             Utils.showToast('Transaction deleted');
             await this.loadData();
         } catch (error) {

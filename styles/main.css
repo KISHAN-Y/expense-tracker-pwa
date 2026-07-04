@@ -1697,6 +1697,85 @@ select {
     pointer-events: none;
 }
 
+/* ============================================
+   TRANSACTION DETAIL SHEET
+   ============================================ */
+.txn-detail-content {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.txn-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.txn-detail-row:last-child {
+    border-bottom: none;
+}
+
+.txn-detail-label {
+    font-size: 14px;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.txn-detail-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.txn-detail-actions {
+    display: flex;
+    gap: 12px;
+    padding: 0 24px 24px;
+    margin-top: auto;
+}
+
+.txn-detail-actions .btn {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.btn-danger {
+    background-color: #FF4B4B;
+    color: white;
+    border: none;
+}
+
+.delete-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    width: 100%;
+}
+.delete-actions .btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+}
+.delete-modal {
+    padding: 32px 24px;
+}
+.delete-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background-color: rgba(255, 75, 75, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
 /* FAB root container — fixed to bottom center */
 .fab-root {
     position: fixed;
