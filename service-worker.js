@@ -1,15 +1,15 @@
 const CACHE_NAME = 'expense-tracker-v16';
 const urlsToCache = [
-    '/',
-    '/index.html',
-    '/styles/main.css',
-    '/scripts/config.js',
-    '/scripts/utils.js',
-    '/scripts/db.js',
-    '/scripts/api.js',
-    '/scripts/ui.js',
-    '/scripts/app.js',
-    '/manifest.json'
+    './',
+    './index.html',
+    './styles/main.css',
+    './scripts/config.js',
+    './scripts/utils.js',
+    './scripts/db.js',
+    './scripts/api.js',
+    './scripts/ui.js',
+    './scripts/app.js',
+    './manifest.json'
 ];
 
 // Install event
@@ -80,7 +80,7 @@ self.addEventListener('fetch', (event) => {
 
     // App shell - Cache first strategy
     event.respondWith(
-        caches.match(request)
+        caches.match(request, { ignoreSearch: true })
             .then((response) => {
                 if (response) {
                     return response;
@@ -99,7 +99,7 @@ self.addEventListener('fetch', (event) => {
             })
             .catch(() => {
                 // Return offline page if available
-                return caches.match('/index.html');
+                return caches.match('./index.html');
             })
     );
 });
