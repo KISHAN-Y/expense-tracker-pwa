@@ -327,6 +327,8 @@ const UI = {
 
     // ─── Wire amount input to live display ───────────────────────────────────
     setupAmountInputs() {
+        if (this._amountInputsSetup) return;
+        this._amountInputsSetup = true;
         const symbol = (() => {
             const cur = CONFIG.DEFAULT_CURRENCY;
             return (CONFIG.CURRENCIES[cur] || CONFIG.CURRENCIES.INR || {symbol: '₹'}).symbol;
@@ -414,7 +416,25 @@ const UI = {
     // ─── Render History with date grouping ───────────────────────────────────
     async renderHistoryTransactions() {
         const container = document.getElementById('historyTransactions');
-        let transactions = await DB.getAllTransactions();
+        const allTransactions = await DB.getAllTransactions();
+
+        // Calculate running balance for all days
+        const ledgerGroups = {};
+        allTransactions.forEach(t => {
+            if (!ledgerGroups[t.date]) ledgerGroups[t.date] = { income: 0, expense: 0 };
+            if (t.type === 'income') ledgerGroups[t.date].income += parseFloat(t.amount);
+            else ledgerGroups[t.date].expense += parseFloat(t.amount);
+        });
+
+        const allDatesSorted = Object.keys(ledgerGroups).sort((a, b) => new Date(a) - new Date(b));
+        let runningBalance = 0;
+        const dailyBalances = {};
+        for (const date of allDatesSorted) {
+            runningBalance += ledgerGroups[date].income - ledgerGroups[date].expense;
+            dailyBalances[date] = runningBalance;
+        }
+
+        let transactions = [...allTransactions];
 
         if (this.filter.type !== 'all') {
             transactions = transactions.filter(t => t.type === this.filter.type);
@@ -473,7 +493,10 @@ const UI = {
 
             return `
             <div class="txn-date-group">
-                <div class="txn-date-label">${dateLabel}</div>
+                <div class="txn-date-label">
+                    <span>${dateLabel}</span>
+                    <span class="day-end-balance">Day End: ${Utils.formatCurrency(dailyBalances[date])}</span>
+                </div>
                 <div class="transactions-list">${itemsHtml}</div>
             </div>`;
         }).join('');
@@ -905,11 +928,11 @@ const UI = {
     },
 
     showDeleteConfirmModal() {
-        document.getElementById('deleteConfirmOverlay')?.classList.add('visible');
+        document.getElementById('deleteConfirmOverlay')?.classList.add('show');
     },
 
     hideDeleteConfirmModal() {
-        document.getElementById('deleteConfirmOverlay')?.classList.remove('visible');
+        document.getElementById('deleteConfirmOverlay')?.classList.remove('show');
     },
 
     // ─── Currency symbol helper ───────────────────────────────────────────────

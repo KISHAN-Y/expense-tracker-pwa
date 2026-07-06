@@ -1194,11 +1194,20 @@ select {
 }
 
 .txn-date-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     font-size: 14px;
     font-weight: 800;
     color: var(--text);
     margin-bottom: 8px;
     padding: 0;
+}
+
+.day-end-balance {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-sub);
 }
 
 .txn-date-group .transactions-list {

@@ -333,6 +333,9 @@ const APP = {
             document.getElementById(`${type}Description`).value = transaction.description || '';
             document.getElementById(`${type}Date`).value = transaction.date;
 
+            // Ensure inputs are wired up
+            UI.setupAmountInputs();
+
             // Trigger input event to format the display amount
             document.getElementById(`${type}Amount`).dispatchEvent(new Event('input'));
             
@@ -346,6 +349,11 @@ const APP = {
 
             // Navigate to the edit screen
             UI.goToPage(type === 'income' ? 'addIncome' : 'addExpense');
+            
+            // Place cursor in the amount input field
+            setTimeout(() => {
+                document.getElementById(`${type}Amount`).focus();
+            }, 100);
 
         } catch (error) {
             console.error('Error editing transaction:', error);
