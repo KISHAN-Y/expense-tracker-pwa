@@ -9,6 +9,12 @@ const APP = {
     // Initialize app
     async init() {
         try {
+            // Hide bottom nav and FAB immediately on startup to prevent flicker on splash screen
+            const bNav = document.getElementById('bottomNav');
+            const fRoot = document.getElementById('fabRoot');
+            if (bNav) bNav.style.display = 'none';
+            if (fRoot) fRoot.style.display = 'none';
+
             // Save initial hash target before forcing splash
             let initialHash = window.location.hash;
             let targetRoute = initialHash.replace(/^#\/?/, '') || 'dashboard';

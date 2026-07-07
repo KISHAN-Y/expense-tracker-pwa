@@ -2413,3 +2413,22 @@ button {
     50% { left: 100%; }
     100% { left: 100%; }
 }
+
+/* Force toast to display above overlays and splash screens */
+.toast {
+    z-index: 99999 !important;
+}
+
+/* Hide bottom navigation and FAB during splash screen, login, and full-screen views */
+#splash.active ~ .bottom-nav,
+#splash.active ~ #fabRoot,
+#authOverlay.visible ~ .bottom-nav,
+#authOverlay.visible ~ #fabRoot,
+#addIncome.active ~ .bottom-nav,
+#addIncome.active ~ #fabRoot,
+#addExpense.active ~ .bottom-nav,
+#addExpense.active ~ #fabRoot,
+#transactionDetail.active ~ .bottom-nav,
+#transactionDetail.active ~ #fabRoot {
+    display: none !important;
+}

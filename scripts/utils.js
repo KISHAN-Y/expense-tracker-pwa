@@ -96,8 +96,8 @@ const Utils = {
         });
     },
 
-    // Show toast notification — auto dismisses after `duration` ms (default 1s)
-    showToast(message, duration = 1000) {
+    // Show toast notification — auto dismisses after `duration` ms (default 2.5s)
+    showToast(message, duration = 2500) {
         const toast = document.getElementById('toast');
         if (!toast) return;
         toast.textContent = message;

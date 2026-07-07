@@ -51,7 +51,7 @@ const UI = {
         this.updateNavIndicator(pageName);
 
         // Hide bottom nav + FAB on full-screen tx pages
-        const fullScreenPages = ['addIncome', 'addExpense', 'transactionDetail'];
+        const fullScreenPages = ['addIncome', 'addExpense', 'transactionDetail', 'splash'];
         const isFullScreen = fullScreenPages.includes(pageName);
         const bottomNav = document.querySelector('.bottom-nav');
         const fabRoot = document.getElementById('fabRoot');
