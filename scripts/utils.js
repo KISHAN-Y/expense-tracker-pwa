@@ -169,19 +169,373 @@ const Utils = {
         };
     },
 
-    // Export to CSV
-    exportToCSV(transactions, filename = 'transactions.csv') {
-        let csv = 'Date,Type,Category,Amount,Description\n';
-        transactions.forEach(t => {
-            csv += `"${t.date}","${t.type}","${t.category}","${t.amount}","${t.description || ''}"\n`;
+    // Export to PDF Reconciled Statement
+    exportToPDF(transactions, displayName, rangeLabel, lastReconciledDate) {
+        if (!transactions || transactions.length === 0) {
+            Utils.showToast('No transactions found for this period');
+            return;
+        }
+
+        // Sort transactions chronologically
+        const sortedTx = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // Format Account Holder Name
+        const userName = displayName && displayName.trim() !== '' ? displayName.trim() : 'Spendlyst User';
+
+        // Calculate Statement Period
+        const dates = sortedTx.map(t => new Date(t.date));
+        const earliestDate = new Date(Math.min(...dates));
+        const latestDate = new Date(Math.max(...dates));
+        
+        const formatDateStr = (dateObj) => {
+            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            return `${String(dateObj.getDate()).padStart(2, '0')} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+        };
+        const periodStr = `${formatDateStr(earliestDate)} – ${formatDateStr(latestDate)}`;
+        const generatedOnStr = formatDateStr(new Date());
+
+        // Determine dynamic save title name (defines filename when saved as PDF)
+        let titleName = 'Spendly_STMT';
+        if (rangeLabel === 'All Time') {
+            titleName += '_alltime';
+        } else {
+            const parts = rangeLabel.replace(',', '').trim().split(' ');
+            if (parts.length === 2) {
+                const monthShort = parts[0].substring(0, 3).toLowerCase();
+                const year = parts[1];
+                titleName += `_${monthShort}${year}`;
+            } else {
+                titleName += '_' + rangeLabel.toLowerCase().replace(/[^a-z0-9]/g, '');
+            }
+        }
+
+        // Compute totals & running balances
+        let runningBalance = 0;
+        let totalIncome = 0;
+        let totalExpense = 0;
+
+        let rowsHtml = '';
+        sortedTx.forEach(t => {
+            const amt = parseFloat(t.amount) || 0;
+            const isIncome = t.type === 'income';
+            
+            if (isIncome) {
+                runningBalance += amt;
+                totalIncome += amt;
+            } else {
+                runningBalance -= amt;
+                totalExpense += amt;
+            }
+
+            const sign = isIncome ? '+' : '-';
+            const amtClass = isIncome ? 'amt-income' : 'amt-expense';
+            const typeLabel = isIncome ? 'Income' : 'Expense';
+
+            rowsHtml += `
+                <tr>
+                    <td>${formatDateStr(new Date(t.date))}</td>
+                    <td>${typeLabel}</td>
+                    <td>${Utils.escapeHTML(t.category)}</td>
+                    <td>${Utils.escapeHTML(t.description || '')}</td>
+                    <td class="num ${amtClass}">${sign}${Utils.formatCurrency(amt)}</td>
+                    <td class="num">${Utils.formatCurrency(runningBalance)}</td>
+                </tr>
+            `;
         });
-        const a = document.createElement('a');
-        a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-        a.download = filename;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+
+        // Reconciled Row
+        const reconciledRow = lastReconciledDate 
+            ? `<tr><td>Reconciled Against</td><td>Bank Statement (Reconciled on ${lastReconciledDate})</td></tr>` 
+            : '';
+
+        // Build HTML document
+        const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${titleName}</title>
+<style>
+  :root{
+    --ink:#1F2430;
+    --muted:#6B7280;
+    --line:#E5E7EB;
+    --accent:#2563EB;
+    --green:#059669;
+    --red:#DC2626;
+    --bg-light:#F9FAFB;
+  }
+
+  * { box-sizing: border-box; }
+
+  body{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: #EEF0F3;
+    margin: 0;
+    padding: 24px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .sheet{
+    max-width: 800px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 40px 44px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    opacity: 0.05;
+    z-index: 1;
+    pointer-events: none;
+    width: 380px;
+    height: 380px;
+    background-image: url('https://spendlyst.tech/assets/icon-192.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+  }
+
+  .brand-title{
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0 0 2px 0;
+  }
+
+  .brand-subtitle{
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 16px 0;
+  }
+
+  hr.divider{
+    border: none;
+    border-top: 2px solid var(--ink);
+    margin: 0 0 20px 0;
+  }
+
+  .meta-table{
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 5;
+  }
+  .meta-table td{
+    padding: 5px 0;
+    font-size: 13px;
+  }
+  .meta-table td:first-child{
+    color: var(--muted);
+    font-weight: 600;
+    width: 200px;
+  }
+
+  h2.section{
+    font-size: 15px;
+    font-weight: 700;
+    margin: 26px 0 10px 0;
+    position: relative;
+    z-index: 5;
+  }
+
+  .summary-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    z-index: 5;
+  }
+  .summary-cell{
+    text-align: center;
+    padding: 14px 8px;
+    border-right: 1px solid var(--line);
+  }
+  .summary-cell:last-child{ border-right: none; }
+  .summary-label{
+    background: var(--ink);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 8px;
+    text-align: center;
+  }
+  .summary-value{
+    font-size: 20px;
+    font-weight: 700;
+    padding-top: 12px;
+    background: var(--bg-light);
+  }
+  .summary-value.income{ color: var(--green); }
+  .summary-value.expense{ color: var(--red); }
+  .summary-value.balance{ color: var(--accent); }
+
+  table.tx-table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    position: relative;
+    z-index: 5;
+  }
+  table.tx-table thead th{
+    background: var(--ink);
+    color: #fff;
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 700;
+    font-size: 11.5px;
+  }
+  table.tx-table th.num, table.tx-table td.num{
+    text-align: right;
+  }
+  table.tx-table tbody td{
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  table.tx-table tbody tr:nth-child(even){
+    background: var(--bg-light);
+  }
+  .amt-income{ color: var(--green); font-weight: 600; }
+  .amt-expense{ color: var(--red); font-weight: 600; }
+
+  .footer{
+    text-align: center;
+    font-size: 10.5px;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    margin-top: 30px;
+    padding-top: 12px;
+    position: relative;
+    z-index: 5;
+  }
+
+  .export-bar{
+    max-width: 800px;
+    margin: 0 auto 12px auto;
+    text-align: right;
+  }
+  .export-bar button{
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .export-bar button:hover{ opacity: 0.9; }
+
+  /* Print-specific: hides the export button, forces clean page */
+  @media print{
+    body{ background: #fff; padding: 0; }
+    .export-bar{ display: none; }
+    .sheet{ box-shadow: none; border-radius: 0; padding: 0; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="watermark"></div>
+
+  <div class="export-bar">
+    <button onclick="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <div class="sheet">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; position: relative; z-index: 5;">
+        <div>
+            <div class="brand-title">Spendlyst</div>
+            <div class="brand-subtitle">Personal Expense Statement &bull; Reconciled Transaction Report (${Utils.escapeHTML(rangeLabel)})</div>
+        </div>
+        <img src="https://spendlyst.tech/assets/icon-192.png" alt="Spendlyst Logo" style="height: 48px; width: 48px; object-fit: contain; flex-shrink: 0; margin-left: 16px;">
+    </div>
+    <hr class="divider">
+
+    <table class="meta-table">
+      <tr><td>Account Holder</td><td>${Utils.escapeHTML(userName)}</td></tr>
+      <tr><td>Statement Period</td><td>${periodStr}</td></tr>
+      ${reconciledRow}
+      <tr><td>Generated On</td><td>${generatedOnStr}</td></tr>
+    </table>
+
+    <h2 class="section">Summary</h2>
+    <div class="summary-grid">
+      <div>
+        <div class="summary-label">Total Income</div>
+        <div class="summary-cell summary-value income">${Utils.formatCurrency(totalIncome)}</div>
+      </div>
+      <div>
+        <div class="summary-label">Total Expense</div>
+        <div class="summary-cell summary-value expense">${Utils.formatCurrency(totalExpense)}</div>
+      </div>
+      <div>
+        <div class="summary-label">Closing Balance</div>
+        <div class="summary-cell summary-value balance">${Utils.formatCurrency(runningBalance)}</div>
+      </div>
+    </div>
+
+    <h2 class="section">Reconciled Transactions</h2>
+    <table class="tx-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Category</th>
+          <th>Description</th>
+          <th class="num">Amount</th>
+          <th class="num">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Spendlyst &bull; Personal Expense Tracker &bull; Auto-generated statement, no signature required
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      document.title = "${titleName}";
+      setTimeout(function() {
+        window.print();
+      }, 300);
+    };
+  <\/script>
+</body>
+</html>
+        `;
+
+        // Create HTML blob and URL
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        // Open print window
+        const printWindow = window.open(url, '_blank');
+        if (!printWindow) {
+            alert('Popup blocker active. Please allow popups for Spendlyst to export statement.');
+            return;
+        }
+
+        // Revoke the object URL after load to free memory
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 15000);
     },
 
     // Copy to clipboard

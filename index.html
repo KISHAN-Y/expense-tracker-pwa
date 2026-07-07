@@ -1,509 +1,916 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="Expense Tracker PWA - Track your income and expenses with offline support">
     <meta name="theme-color" content="#7B61FF">
     <title>Expense Tracker</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="assets/icon-192.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/icon-192.png">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="styles/main.css">
     <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
 </head>
+
 <body>
 
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
+     ONBOARDING OVERLAY (First-time users)
+═══════════════════════════════════════════ -->
+    <div id="onboardingOverlay" class="onboarding-overlay">
+        <div class="onboarding-container">
+            <div class="onboarding-slides" id="onboardingSlides">
+                <!-- Slide 1: Welcome -->
+                <div class="onboarding-slide active" data-slide="0">
+                    <div class="onboarding-illustration">
+                        <div class="onboarding-logo-ring">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white"
+                                stroke-width="1.5">
+                                <rect x="2" y="5" width="20" height="14" rx="3" />
+                                <path d="M12 9v6M9 12h6" />
+                            </svg>
+                        </div>
+                    </div>
+                    <h1 class="onboarding-title">Expense Tracker</h1>
+                    <p class="onboarding-desc">Take control of your finances. Track every rupee, set budgets, and watch
+                        your savings grow.</p>
+                </div>
+                <!-- Slide 2: Setup -->
+                <div class="onboarding-slide" data-slide="1">
+                    <div class="onboarding-illustration">
+                        <div class="onboarding-icon-circle setup">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white"
+                                stroke-width="1.5">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                            </svg>
+                        </div>
+                    </div>
+                    <h1 class="onboarding-title">What's your name?</h1>
+                    <p class="onboarding-desc">Personalize your experience</p>
+                    <input type="text" id="onboardingName" class="onboarding-input" placeholder="Enter your name"
+                        maxlength="30" autocomplete="off">
+                </div>
+                <!-- Slide 3: Notifications -->
+                <div class="onboarding-slide" data-slide="2">
+                    <div class="onboarding-illustration">
+                        <div class="onboarding-icon-circle notif">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white"
+                                stroke-width="1.5">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                            </svg>
+                        </div>
+                    </div>
+                    <h1 class="onboarding-title">Stay on Track</h1>
+                    <p class="onboarding-desc">Enable notifications to get reminders about logging your expenses</p>
+                    <button id="onboardingEnableNotif" class="onboarding-notif-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                        Enable Notifications
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dot Indicators -->
+            <div class="onboarding-dots">
+                <span class="onboarding-dot active" data-dot="0"></span>
+                <span class="onboarding-dot" data-dot="1"></span>
+                <span class="onboarding-dot" data-dot="2"></span>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="onboarding-actions">
+                <button id="onboardingSkip" class="onboarding-skip">Skip</button>
+                <button id="onboardingNext" class="onboarding-next-btn">
+                    Next
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M9 18l6-6-6-6" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
      DASHBOARD / HOME PAGE
 ═══════════════════════════════════════════ -->
-<div id="dashboard" class="page active">
-    <div class="home-screen">
+    <div id="dashboard" class="page active">
+        <div class="home-screen">
 
-        <!-- Top Header -->
-        <div class="home-header">
-            <button id="profileBtn" class="avatar-btn" title="Profile">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                    <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                </svg>
-            </button>
-            <button class="month-selector" id="monthSelectorBtn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-                <span id="currentMonthLabel">July</span>
-            </button>
-            <button id="notifBtn" class="notif-btn" title="Notifications">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-                <span class="notif-dot"></span>
-            </button>
-        </div>
+            <!-- Top Header -->
+            <div class="home-header">
+                <button id="profileBtn" class="avatar-btn" title="Profile">
+                    <span id="headerAvatarInitial">U</span>
+                </button>
+                <button class="month-selector" id="monthSelectorBtn">
+                    <span id="currentMonthLabel">July</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2.5">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <button id="notifBtn" class="notif-btn" title="Notifications">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                    <span class="notif-dot" id="notifDot"></span>
+                </button>
+            </div>
 
-        <!-- Balance Section -->
-        <div class="balance-section">
-            <p class="balance-label">Account Balance</p>
-            <h1 class="balance-amount" id="currentBalance">₹0</h1>
-        </div>
+            <!-- Balance Section with Greeting -->
+            <div class="balance-section">
+                <p class="greeting-text" id="greetingText">Good morning 👋</p>
+                <p class="balance-label">Account Balance</p>
+                <h1 class="balance-amount" id="currentBalance">₹0</h1>
+            </div>
 
-        <!-- Income / Expense Cards -->
-        <div class="summary-cards">
-            <div class="summary-card income-card">
-                <div class="card-icon">
+            <!-- Income / Expense Cards -->
+            <div class="summary-cards">
+                <div class="summary-card income-card">
+                    <!-- <div class="card-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
                         <rect x="2" y="5" width="20" height="14" rx="3"/>
                         <path d="M12 9v6M9 12h6"/>
                     </svg>
+                </div> -->
+                    <div class="card-text">
+                        <span class="card-type-label">Income</span>
+                        <span class="card-value" id="totalIncome">₹0</span>
+                    </div>
                 </div>
-                <div class="card-text">
-                    <span class="card-type-label">Income</span>
-                    <span class="card-value" id="totalIncome">₹0</span>
-                </div>
-            </div>
-            <div class="summary-card expense-card">
-                <div class="card-icon">
+                <div class="summary-card expense-card">
+                    <!-- <div class="card-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
                         <rect x="3" y="6" width="18" height="13" rx="2"/>
                         <path d="M3 10h18"/><path d="M7 15h.01M11 15h2"/>
                     </svg>
-                </div>
-                <div class="card-text">
-                    <span class="card-type-label">Expenses</span>
-                    <span class="card-value" id="totalExpense">₹0</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Spend Frequency Heatmap Section (Matches design mockup) -->
-        <div class="chart-section heatmap-card">
-            <div class="heatmap-title-area">
-                <h2 class="heatmap-year-title" id="heatmapYearTitle">2026</h2>
-                <p class="heatmap-subtitle">World, hold on!</p>
-            </div>
-            <div id="spendHeatmap" class="heatmap-wrapper"></div>
-            <div class="period-tabs">
-                <button class="period-tab active" data-period="today">Today</button>
-                <button class="period-tab" data-period="week">Week</button>
-                <button class="period-tab" data-period="month">Month</button>
-                <button class="period-tab" data-period="year">Year</button>
-            </div>
-        </div>
-
-        <!-- Recent Transactions -->
-        <div class="recent-section">
-            <div class="recent-header">
-                <h2 class="section-title">Recent Transaction</h2>
-                <button class="see-all-btn" id="seeAllBtn">See All</button>
-            </div>
-            <div id="recentTransactions" class="transactions-list">
-                <div class="empty-state">
-                    <p>No transactions yet. Start tracking!</p>
+                </div> -->
+                    <div class="card-text">
+                        <span class="card-type-label">Expenses</span>
+                        <span class="card-value" id="totalExpense">₹0</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
+            <!-- Report Banner on Dashboard -->
+            <div style="padding: 0 24px; margin-top: 16px;">
+                <button class="report-banner" id="dashboardReportBannerBtn" style="width: 100%; margin: 0;">
+                    <span>See your financial report</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M9 18l6-6-6-6" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Spend Frequency Heatmap Section -->
+            <div class="chart-section heatmap-card">
+                <div class="heatmap-title-area">
+                    <h2 class="heatmap-year-title" id="heatmapYearTitle">2026</h2>
+                    <p class="heatmap-subtitle">Spend Frequency</p>
+                </div>
+                <div id="spendHeatmap" class="heatmap-wrapper"></div>
+                <div class="period-tabs">
+                    <button class="period-tab active" data-period="today">Today</button>
+                    <button class="period-tab" data-period="week">Week</button>
+                    <button class="period-tab" data-period="month">Month</button>
+                    <button class="period-tab" data-period="year">Year</button>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="recent-section">
+                <div class="recent-header">
+                    <h2 class="section-title">Recent Transaction</h2>
+                    <button class="see-all-btn" id="seeAllBtn">See All</button>
+                </div>
+                <div id="recentTransactions" class="transactions-list">
+                    <div class="empty-state">
+                        <p>No transactions yet. Start tracking!</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
     </div>
-</div>
 
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      ADD EXPENSE PAGE (red theme)
 ═══════════════════════════════════════════ -->
-<div id="addExpense" class="page tx-page expense-page">
-    <!-- Colored top section -->
-    <div class="tx-top expense-top">
-        <div class="tx-top-header">
-            <button class="tx-back-btn" id="backFromExpenseBtn">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-            </button>
-            <span class="tx-title">Expense</span>
-            <div style="width:38px;"></div>
+    <div id="addExpense" class="page tx-page expense-page">
+        <!-- Colored top section -->
+        <div class="tx-top expense-top">
+            <div class="tx-top-header">
+                <button class="tx-back-btn" id="backFromExpenseBtn">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <span class="tx-title">Expense</span>
+                <div style="width:38px;"></div>
+            </div>
+            <div class="tx-amount-section">
+                <p class="tx-how-much">How much?</p>
+                <div class="tx-amount-display" id="expenseAmountDisplay">₹0</div>
+                <input type="number" id="expenseAmount" class="tx-hidden-input" placeholder="0" min="0" step="0.01">
+            </div>
         </div>
-        <div class="tx-amount-section">
-            <p class="tx-how-much">How much?</p>
-            <div class="tx-amount-display" id="expenseAmountDisplay">₹0</div>
-            <input type="number" id="expenseAmount" class="tx-hidden-input" placeholder="0" min="0" step="0.01">
+
+        <!-- White bottom sheet -->
+        <div class="tx-bottom-sheet">
+            <div class="tx-field-group">
+                <!-- Custom Category Select Trigger -->
+                <div class="custom-select-trigger" id="expenseCategoryTrigger" data-type="expense">
+                    <span class="custom-select-text" id="expenseCategoryText">Category</span>
+                    <svg class="tx-select-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </div>
+                <input type="hidden" id="expenseCategory" value="">
+
+                <input type="text" id="expenseDescription" class="tx-input" placeholder="Description" maxlength="100">
+
+                <!-- Custom Date Trigger -->
+                <div class="custom-select-trigger" id="expenseDateTrigger">
+                    <span class="custom-select-text" id="expenseDateText">Select Date</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                </div>
+                <input type="hidden" id="expenseDate" value="">
+            </div>
+            <button class="tx-continue-btn" id="expenseContinueBtn">Continue</button>
         </div>
     </div>
 
-    <!-- White bottom sheet -->
-    <div class="tx-bottom-sheet">
-        <div class="tx-field-group">
-            <!-- Custom Category Select Trigger -->
-            <div class="custom-select-trigger" id="expenseCategoryTrigger" data-type="expense">
-                <span class="custom-select-text" id="expenseCategoryText">Category</span>
-                <svg class="tx-select-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-            <input type="hidden" id="expenseCategory" value="">
-
-            <input type="text" id="expenseDescription" class="tx-input" placeholder="Description" maxlength="100">
-
-            <!-- Custom Date Trigger (Replaces native <input type="date">) -->
-            <div class="custom-select-trigger" id="expenseDateTrigger">
-                <span class="custom-select-text" id="expenseDateText">Select Date</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <input type="hidden" id="expenseDate" value="">
-        </div>
-        <button class="tx-continue-btn" id="expenseContinueBtn">Continue</button>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      ADD INCOME PAGE (green theme)
 ═══════════════════════════════════════════ -->
-<div id="addIncome" class="page tx-page income-page">
-    <!-- Colored top section -->
-    <div class="tx-top income-top">
-        <div class="tx-top-header">
-            <button class="tx-back-btn" id="backFromIncomeBtn">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-            </button>
-            <span class="tx-title">Income</span>
-            <div style="width:38px;"></div>
+    <div id="addIncome" class="page tx-page income-page">
+        <!-- Colored top section -->
+        <div class="tx-top income-top">
+            <div class="tx-top-header">
+                <button class="tx-back-btn" id="backFromIncomeBtn">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                    </svg>
+                </button>
+                <span class="tx-title">Income</span>
+                <div style="width:38px;"></div>
+            </div>
+            <div class="tx-amount-section">
+                <p class="tx-how-much">How much?</p>
+                <div class="tx-amount-display" id="incomeAmountDisplay">₹0</div>
+                <input type="number" id="incomeAmount" class="tx-hidden-input" placeholder="0" min="0" step="0.01">
+            </div>
         </div>
-        <div class="tx-amount-section">
-            <p class="tx-how-much">How much?</p>
-            <div class="tx-amount-display" id="incomeAmountDisplay">₹0</div>
-            <input type="number" id="incomeAmount" class="tx-hidden-input" placeholder="0" min="0" step="0.01">
+
+        <!-- White bottom sheet -->
+        <div class="tx-bottom-sheet">
+            <div class="tx-field-group">
+                <!-- Custom Category Select Trigger -->
+                <div class="custom-select-trigger" id="incomeCategoryTrigger" data-type="income">
+                    <span class="custom-select-text" id="incomeCategoryText">Category</span>
+                    <svg class="tx-select-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </div>
+                <input type="hidden" id="incomeCategory" value="">
+
+                <input type="text" id="incomeDescription" class="tx-input" placeholder="Description" maxlength="100">
+
+                <!-- Custom Date Trigger -->
+                <div class="custom-select-trigger" id="incomeDateTrigger">
+                    <span class="custom-select-text" id="incomeDateText">Select Date</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                </div>
+                <input type="hidden" id="incomeDate" value="">
+            </div>
+            <button class="tx-continue-btn" id="incomeContinueBtn">Continue</button>
         </div>
     </div>
 
-    <!-- White bottom sheet -->
-    <div class="tx-bottom-sheet">
-        <div class="tx-field-group">
-            <!-- Custom Category Select Trigger -->
-            <div class="custom-select-trigger" id="incomeCategoryTrigger" data-type="income">
-                <span class="custom-select-text" id="incomeCategoryText">Category</span>
-                <svg class="tx-select-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-            <input type="hidden" id="incomeCategory" value="">
-
-            <input type="text" id="incomeDescription" class="tx-input" placeholder="Description" maxlength="100">
-
-            <!-- Custom Date Trigger (Replaces native <input type="date">) -->
-            <div class="custom-select-trigger" id="incomeDateTrigger">
-                <span class="custom-select-text" id="incomeDateText">Select Date</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <input type="hidden" id="incomeDate" value="">
-        </div>
-        <button class="tx-continue-btn" id="incomeContinueBtn">Continue</button>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      TRANSACTION HISTORY PAGE
 ═══════════════════════════════════════════ -->
-<div id="history" class="page">
-    <!-- Header -->
-    <div class="txn-header">
-        <button class="month-selector" id="txnMonthBtn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-            <span id="txnMonthLabel">July</span>
-        </button>
-        <button class="filter-icon-btn" id="openFilterBtn" title="Filter">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <line x1="4" y1="6" x2="20" y2="6"/>
-                <line x1="8" y1="12" x2="16" y2="12"/>
-                <line x1="11" y1="18" x2="13" y2="18"/>
-            </svg>
-        </button>
-    </div>
-
-    <main class="txn-main">
-        <button class="report-banner" id="reportBannerBtn">
-            <span>See your financial report</span>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
-        <div id="historyTransactions" class="txn-grouped-list">
-            <div class="empty-state"><p>No transactions found</p></div>
-        </div>
-    </main>
-
-    <!-- Filter Bottom Sheet -->
-    <div class="filter-overlay" id="filterOverlay"></div>
-    <div class="filter-sheet" id="filterSheet">
-        <div class="sheet-handle"></div>
-        <div class="sheet-header">
-            <span class="sheet-title">Filter Transaction</span>
-            <button class="sheet-reset" id="resetFilterBtn">Reset</button>
-        </div>
-        <div class="sheet-section">
-            <h3 class="sheet-label">Filter By</h3>
-            <div class="pill-group" id="filterByGroup">
-                <button class="pill active" data-filter="all">All</button>
-                <button class="pill" data-filter="income">Income</button>
-                <button class="pill" data-filter="expense">Expense</button>
-            </div>
-        </div>
-        <div class="sheet-section">
-            <h3 class="sheet-label">Sort By</h3>
-            <div class="pill-group" id="sortByGroup">
-                <button class="pill" data-sort="highest">Highest</button>
-                <button class="pill" data-sort="lowest">Lowest</button>
-                <button class="pill active" data-sort="newest">Newest</button>
-                <button class="pill" data-sort="oldest">Oldest</button>
-            </div>
-        </div>
-        <div class="sheet-section">
-            <h3 class="sheet-label">Category</h3>
-            <button class="category-picker" id="categoryPickerBtn">
-                <span>Choose Category</span>
-                <div class="picker-right">
-                    <span class="picker-count" id="selectedCatCount">0 Selected</span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
+    <div id="history" class="page">
+        <!-- Header -->
+        <div class="txn-header">
+            <button class="month-selector" id="txnMonthBtn">
+                <span id="txnMonthLabel">July</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M6 9l6 6 6-6" />
+                </svg>
+            </button>
+            <button class="filter-icon-btn" id="openFilterBtn" title="Filter">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <line x1="4" y1="6" x2="20" y2="6" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                    <line x1="11" y1="18" x2="13" y2="18" />
+                </svg>
             </button>
         </div>
-        <button class="apply-btn" id="applyFilterBtn">Apply</button>
-    </div>
-</div>
 
-<!-- ═══════════════════════════════════════════
+        <main class="txn-main">
+            <button class="report-banner" id="reportBannerBtn">
+                <span>See your financial report</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M9 18l6-6-6-6" />
+                </svg>
+            </button>
+            <div id="historyTransactions" class="txn-grouped-list">
+                <div class="empty-state">
+                    <p>No transactions found</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Filter Bottom Sheet -->
+        <div class="filter-overlay" id="filterOverlay"></div>
+        <div class="filter-sheet" id="filterSheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <span class="sheet-title">Filter Transaction</span>
+                <button class="sheet-reset" id="resetFilterBtn">Reset</button>
+            </div>
+            <div class="sheet-section">
+                <h3 class="sheet-label">Filter By</h3>
+                <div class="pill-group" id="filterByGroup">
+                    <button class="pill active" data-filter="all">All</button>
+                    <button class="pill" data-filter="income">Income</button>
+                    <button class="pill" data-filter="expense">Expense</button>
+                </div>
+            </div>
+            <div class="sheet-section">
+                <h3 class="sheet-label">Sort By</h3>
+                <div class="pill-group" id="sortByGroup">
+                    <button class="pill" data-sort="highest">Highest</button>
+                    <button class="pill" data-sort="lowest">Lowest</button>
+                    <button class="pill active" data-sort="newest">Newest</button>
+                    <button class="pill" data-sort="oldest">Oldest</button>
+                </div>
+            </div>
+            <div class="sheet-section">
+                <h3 class="sheet-label">Category</h3>
+                <button class="category-picker" id="categoryPickerBtn">
+                    <span>Choose Category</span>
+                    <div class="picker-right">
+                        <span class="picker-count" id="selectedCatCount">0 Selected</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </div>
+                </button>
+            </div>
+            <button class="apply-btn" id="applyFilterBtn">Apply</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
      BUDGET PAGE
 ═══════════════════════════════════════════ -->
-<div id="budget" class="page">
-    <header class="sub-header">
-        <button id="backFromBudgetBtn" class="back-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        </button>
-        <h1>Budget</h1>
-        <div></div>
-    </header>
-    <main class="page-main">
-        <div class="empty-state" style="padding-top:80px;">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-            <p>Budget tracking coming soon!</p>
-        </div>
-    </main>
-</div>
+    <div id="budget" class="page">
+        <header class="budget-header">
+            <button class="month-selector" id="budgetMonthBtn">
+                <span id="budgetMonthLabel">July</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M6 9l6 6 6-6" />
+                </svg>
+            </button>
+        </header>
+        <main class="budget-main" id="budgetMain">
+            <!-- Budget Overall Ring -->
+            <div class="budget-ring-section" id="budgetRingSection">
+                <div class="budget-ring-container">
+                    <svg class="budget-ring-svg" viewBox="0 0 120 120" id="budgetRingSvg">
+                        <circle class="budget-ring-bg" cx="60" cy="60" r="52" fill="none" stroke-width="10" />
+                        <circle class="budget-ring-progress" cx="60" cy="60" r="52" fill="none" stroke-width="10"
+                            stroke-linecap="round" id="budgetRingProgress" />
+                    </svg>
+                    <div class="budget-ring-center">
+                        <span class="budget-ring-amount" id="budgetRingSpent">₹0</span>
+                        <span class="budget-ring-label">of <span id="budgetRingTotal">₹0</span></span>
+                    </div>
+                </div>
+                <p class="budget-ring-status" id="budgetRingStatus">No budgets set yet</p>
+            </div>
 
-<!-- ═══════════════════════════════════════════
+            <!-- Budget Category Cards -->
+            <div class="budget-cards-list" id="budgetCardsList">
+                <div class="budget-empty-state">
+                    <div class="budget-empty-icon">
+                        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--primary)"
+                            stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 8v4l3 3" />
+                        </svg>
+                    </div>
+                    <p class="budget-empty-title">No budgets yet</p>
+                    <p class="budget-empty-desc">Create your first budget to start tracking your spending limits</p>
+                </div>
+            </div>
+
+            <!-- Create Budget Button -->
+            <button class="budget-create-fab" id="createBudgetBtn">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <path d="M12 5v14M5 12h14" />
+                </svg>
+                Create Budget
+            </button>
+        </main>
+
+        <!-- Create Budget Bottom Sheet -->
+        <div class="custom-sheet-overlay" id="budgetSheetOverlay"></div>
+        <div class="custom-sheet" id="createBudgetSheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-header">
+                <span class="sheet-title">Create Budget</span>
+                <button class="sheet-close" id="closeBudgetSheetBtn">&times;</button>
+            </div>
+            <div class="budget-sheet-body">
+                <div class="custom-select-trigger" id="budgetCategoryTrigger">
+                    <span class="custom-select-text" id="budgetCategoryText">Select Category</span>
+                    <svg class="tx-select-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </div>
+                <input type="hidden" id="budgetCategoryInput" value="">
+                <div class="budget-amount-input-area">
+                    <label class="budget-amount-label">Monthly Limit</label>
+                    <input type="number" id="budgetAmountInput" class="tx-input" placeholder="Enter amount" min="0"
+                        step="1">
+                </div>
+                <button class="tx-continue-btn" id="saveBudgetBtn">Save Budget</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
      PROFILE PAGE
 ═══════════════════════════════════════════ -->
-<div id="profile" class="page">
-    <header class="sub-header">
-        <button id="backFromProfileBtn" class="back-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        </button>
-        <h1>Profile</h1>
-        <div></div>
-    </header>
-    <main class="page-main">
-        <div class="settings-section">
-            <h2>Appearance</h2>
-            <div class="setting-item">
-                <div class="setting-label">
-                    <span>Dark Mode</span>
-                    <span class="setting-description">Enable dark theme</span>
+    <div id="profile" class="page">
+        <div class="profile-screen">
+            <!-- Profile Hero -->
+            <div class="profile-hero">
+                <div class="profile-avatar-area">
+                    <div class="profile-avatar-large" id="profileAvatarLarge">
+                        <span id="profileAvatarInitials">U</span>
+                    </div>
+                    <button class="profile-avatar-edit" id="profileAvatarEditBtn" title="Change color">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+                            <path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                        </svg>
+                    </button>
                 </div>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="darkModeToggle">
-                    <span class="toggle-slider"></span>
-                </label>
+                <h2 class="profile-name" id="profileDisplayName">User</h2>
+                <p class="profile-member-since" id="profileMemberSince">Member since 2026</p>
             </div>
-        </div>
-        <div class="settings-section">
-            <h2>Preferences</h2>
-            <div class="setting-item">
-                <div class="setting-label">
-                    <span>Currency</span>
-                    <span class="setting-description">Select your currency</span>
+
+            <!-- Quick Stats -->
+            <div class="profile-stats-row">
+                <div class="profile-stat-card">
+                    <span class="profile-stat-value" id="statTotalTx">0</span>
+                    <span class="profile-stat-label">Transactions</span>
                 </div>
-                <div class="custom-select-trigger currency-trigger" id="currencySelectTrigger">
-                    <span id="currencySelectText">₹ Indian Rupee</span>
-                    <svg class="tx-select-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                <div class="profile-stat-card">
+                    <span class="profile-stat-value" id="statTotalSaved">₹0</span>
+                    <span class="profile-stat-label">Net Saved</span>
+                </div>
+                <div class="profile-stat-card">
+                    <span class="profile-stat-value" id="statDaysActive">0</span>
+                    <span class="profile-stat-label">Days Active</span>
                 </div>
             </div>
-        </div>
-        <div class="settings-section">
-            <h2>Notifications</h2>
-            <div class="setting-item">
-                <div class="setting-label">
-                    <span>3-Hour Reminder</span>
-                    <span class="setting-description">Reminds you to log recent income & expenses</span>
+
+            <!-- Settings Sections -->
+            <div class="profile-settings-container">
+                <!-- Account -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title">Account</h3>
+                    <button class="settings-row" id="editNameBtn">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon purple"><svg width="18" height="18" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                    <circle cx="12" cy="7" r="4" />
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">Display Name</span>
+                                <span class="settings-row-desc" id="settingsNamePreview">User</span>
+                            </div>
+                        </div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-sub)"
+                            stroke-width="2.5">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
                 </div>
-                <button id="testNotifBtn" class="btn btn-secondary" style="padding: 10px 16px; font-size: 13px; font-weight: 700; white-space: nowrap;">
-                    Test Notification 🔔
+
+                <!-- Appearance -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title">Appearance</h3>
+                    <div class="settings-row">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon dark"><svg width="18" height="18" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">Dark Mode</span>
+                                <span class="settings-row-desc">Easier on the eyes</span>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="darkModeToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Preferences -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title">Preferences</h3>
+                    <button class="settings-row" id="currencySettingBtn">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon green"><svg width="18" height="18" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="1" x2="12" y2="23" />
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">Currency</span>
+                                <span class="settings-row-desc" id="currencySelectText">₹ Indian Rupee</span>
+                            </div>
+                        </div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-sub)"
+                            stroke-width="2.5">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Notifications -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title">Notifications</h3>
+                    <div class="settings-row">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon orange"><svg width="18" height="18" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">3-Hour Reminder</span>
+                                <span class="settings-row-desc">Log your recent transactions</span>
+                            </div>
+                        </div>
+                        <button id="testNotifBtn" class="settings-action-btn">Test 🔔</button>
+                    </div>
+                </div>
+
+                <!-- Data -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title">Data</h3>
+                    <div class="settings-row">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon purple"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">Export Range</span>
+                                <span class="settings-row-desc">Select statement period</span>
+                            </div>
+                        </div>
+                        <select id="exportRangeSelect" class="settings-select">
+                            <option value="month">Current Month</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon teal"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">Account Holder</span>
+                                <span class="settings-row-desc">Name on statement</span>
+                            </div>
+                        </div>
+                        <input type="text" id="exportAccountHolderInput" class="settings-input" placeholder="User Name" style="width: 160px; text-align: right;">
+                    </div>
+                    <button class="settings-row" id="exportPdfBtn">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon blue"><svg width="18" height="18" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">Export as PDF</span>
+                                <span class="settings-row-desc">Download reconciled statement</span>
+                            </div>
+                        </div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-sub)"
+                            stroke-width="2.5">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <button class="settings-row" id="backupBtn">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon teal"><svg width="18" height="18" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="16 16 12 12 8 16" />
+                                    <line x1="12" y1="12" x2="12" y2="21" />
+                                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">Backup to Cloud</span>
+                                <span class="settings-row-desc">Sync your data safely</span>
+                            </div>
+                        </div>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-sub)"
+                            stroke-width="2.5">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- About -->
+                <div class="settings-card">
+                    <h3 class="settings-card-title">About</h3>
+                    <div class="settings-row">
+                        <div class="settings-row-left">
+                            <div class="settings-row-icon purple"><svg width="18" height="18" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="16" x2="12" y2="12" />
+                                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                                </svg></div>
+                            <div class="settings-row-text">
+                                <span class="settings-row-name">Expense Tracker v2.0</span>
+                                <span class="settings-row-desc">A modern PWA for your finances</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Install -->
+                <button id="installBtn" class="install-app-btn" style="display:none;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Install App
                 </button>
             </div>
         </div>
-        <div class="settings-section">
-            <h2>Data</h2>
-            <button id="exportBtn" class="btn btn-secondary full-width">Export as CSV</button>
-            <button id="backupBtn" class="btn btn-secondary full-width">Backup to Cloud</button>
-        </div>
-        <div class="settings-section">
-            <h2>About</h2>
-            <div class="setting-item">
-                <div>
-                    <span style="font-weight:700;">Expense Tracker v1.0.0</span>
-                    <p class="setting-description">A modern PWA for tracking your finances</p>
-                </div>
-            </div>
-        </div>
-        <div class="settings-section">
-            <button id="installBtn" class="btn btn-primary full-width" style="display:none;">Install App</button>
-        </div>
-    </main>
-</div>
+    </div>
 
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      TRANSACTION DETAIL PAGE
 ═══════════════════════════════════════════ -->
-<div id="transactionDetail" class="page">
-    <header class="sub-header">
-        <button id="backFromDetailBtn" class="back-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-        </button>
-        <h1>Order Status</h1> <!-- Dynamic title -->
-        <div></div>
-    </header>
-    <main class="page-main detail-page-main" style="padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center;">
-        
-        <!-- Hero Illustration -->
-        <div class="detail-hero-illustration">
-            <img src="assets/statement.svg" alt="Transaction Illustration" style="width: 150px; height: 150px;">
-        </div>
+    <div id="transactionDetail" class="page">
+        <header class="sub-header">
+            <button id="backFromDetailBtn" class="back-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+            </button>
+            <h1>Transaction Detail</h1>
+            <div></div>
+        </header>
+        <main class="page-main detail-page-main"
+            style="padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center;">
 
-        <h2 id="detailHeroTitle" style="font-size: 24px; font-weight: 800; margin-top: 16px; margin-bottom: 4px;">Status</h2>
-        <p id="detailHeroSubtitle" style="color: var(--text-light); margin-bottom: 32px; font-weight: 500;">Subtitle</p>
+            <!-- Hero Illustration -->
+            <div class="detail-hero-illustration">
+                <img src="assets/statement.svg" alt="Transaction Illustration" style="width: 150px; height: 150px;">
+            </div>
 
-        <!-- Primary Amount Card -->
-        <div class="detail-primary-card">
-            <div class="detail-cat-info">
-                <div id="detailCatIcon" class="detail-icon-box">🍔</div>
-                <div class="detail-cat-text">
-                    <span id="detailCatLabel" style="font-size: 12px; color: var(--text-light); text-transform: uppercase; font-weight: 600;">Category</span>
-                    <span id="detailCatName" style="font-size: 16px; font-weight: 700; color: var(--text-dark);">Food</span>
+            <h2 id="detailHeroTitle" style="font-size: 24px; font-weight: 800; margin-top: 16px; margin-bottom: 4px;">
+                Status</h2>
+            <p id="detailHeroSubtitle" style="color: var(--text-light); margin-bottom: 32px; font-weight: 500;">Subtitle
+            </p>
+
+            <!-- Primary Amount Card -->
+            <div class="detail-primary-card">
+                <div class="detail-cat-info">
+                    <div id="detailCatIcon" class="detail-icon-box">🍔</div>
+                    <div class="detail-cat-text">
+                        <span id="detailCatLabel"
+                            style="font-size: 12px; color: var(--text-light); text-transform: uppercase; font-weight: 600;">Category</span>
+                        <span id="detailCatName"
+                            style="font-size: 16px; font-weight: 700; color: var(--text-dark);">Food</span>
+                    </div>
+                </div>
+                <div id="detailAmount" class="detail-amount-val"
+                    style="font-size: 18px; font-weight: 800; color: var(--text-dark);">- $15.00</div>
+            </div>
+
+            <!-- Summary Detail Card -->
+            <div class="detail-summary-card">
+                <h3
+                    style="font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; text-align: left;">
+                    Order Summary</h3>
+
+                <div class="detail-grid-row">
+                    <span class="detail-row-label">Type</span>
+                    <span id="detailTypeVal" class="detail-row-val">Expense</span>
+                </div>
+                <div class="detail-grid-row">
+                    <span class="detail-row-label">Date</span>
+                    <span id="detailDateVal" class="detail-row-val">Jul 4, 2026</span>
+                </div>
+                <div class="detail-grid-row" id="detailDescRow">
+                    <span class="detail-row-label">Notes</span>
+                    <span id="detailDescVal" class="detail-row-val">Lunch</span>
                 </div>
             </div>
-            <div id="detailAmount" class="detail-amount-val" style="font-size: 18px; font-weight: 800; color: var(--text-dark);">- $15.00</div>
-        </div>
 
-        <!-- Summary Detail Card -->
-        <div class="detail-summary-card">
-            <h3 style="font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; text-align: left;">Order Summary</h3>
-            
-            <div class="detail-grid-row">
-                <span class="detail-row-label">Type</span>
-                <span id="detailTypeVal" class="detail-row-val">Expense</span>
+            <!-- Action Buttons -->
+            <div
+                style="margin-top: auto; width: 100%; padding-top: 32px; display: flex; gap: 12px; align-items: center;">
+                <button id="detailEditBtn" class="btn btn-secondary full-width"
+                    style="border-radius: 30px;">Edit</button>
+                <button id="detailDeleteBtn" class="btn btn-danger full-width"
+                    style="border-radius: 30px;">Delete</button>
             </div>
-            <div class="detail-grid-row">
-                <span class="detail-row-label">Date</span>
-                <span id="detailDateVal" class="detail-row-val">Jul 4, 2026</span>
-            </div>
-            <div class="detail-grid-row" id="detailDescRow">
-                <span class="detail-row-label">Notes</span>
-                <span id="detailDescVal" class="detail-row-val">Lunch</span>
+
+        </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+     NOTIFICATION CENTER (Slide-down sheet)
+═══════════════════════════════════════════ -->
+    <div class="notif-sheet-overlay" id="notifSheetOverlay"></div>
+    <div class="notif-sheet" id="notifSheet">
+        <div class="notif-sheet-header">
+            <h3 class="notif-sheet-title">Notifications</h3>
+            <button class="notif-mark-read" id="markAllReadBtn">Mark all read</button>
+        </div>
+        <div class="notif-sheet-list" id="notifSheetList">
+            <div class="notif-empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-sub)" stroke-width="1.5">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                <p>No notifications yet</p>
             </div>
         </div>
+    </div>
 
-        <!-- Action Buttons -->
-        <div style="margin-top: auto; width: 100%; padding-top: 32px; display: flex; gap: 12px; align-items: center;">
-            <button id="detailEditBtn" class="btn btn-secondary full-width" style="border-radius: 30px;">Edit</button>
-            <button id="detailDeleteBtn" class="btn btn-danger full-width" style="border-radius: 30px;">Delete</button>
-        </div>
-
-    </main>
-</div>
-
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      CUSTOM CATEGORY PICKER BOTTOM SHEET
 ═══════════════════════════════════════════ -->
-<div class="custom-sheet-overlay" id="customSheetOverlay"></div>
-<div class="custom-sheet" id="categoryPickerSheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-header">
-        <span class="sheet-title" id="categoryPickerSheetTitle">Category</span>
-        <button class="sheet-close" id="closeCategorySheetBtn">&times;</button>
+    <div class="custom-sheet-overlay" id="customSheetOverlay"></div>
+    <div class="custom-sheet" id="categoryPickerSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title" id="categoryPickerSheetTitle">Category</span>
+            <button class="sheet-close" id="closeCategorySheetBtn">&times;</button>
+        </div>
+        <div class="category-picker-list" id="categoryPickerList">
+            <!-- Dynamically generated custom category items -->
+        </div>
     </div>
-    <div class="category-picker-list" id="categoryPickerList">
-        <!-- Dynamically generated custom category items -->
-    </div>
-</div>
 
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      CUSTOM MONTH PICKER BOTTOM SHEET
 ═══════════════════════════════════════════ -->
-<div class="custom-sheet" id="monthPickerSheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-header">
-        <span class="sheet-title">Select Month</span>
-        <button class="sheet-close" id="closeMonthSheetBtn">&times;</button>
+    <div class="custom-sheet" id="monthPickerSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title">Select Month</span>
+            <button class="sheet-close" id="closeMonthSheetBtn">&times;</button>
+        </div>
+        <div class="month-picker-grid" id="monthPickerGrid">
+            <button class="month-picker-item" data-month="January">January</button>
+            <button class="month-picker-item" data-month="February">February</button>
+            <button class="month-picker-item" data-month="March">March</button>
+            <button class="month-picker-item" data-month="April">April</button>
+            <button class="month-picker-item" data-month="May">May</button>
+            <button class="month-picker-item" data-month="June">June</button>
+            <button class="month-picker-item active" data-month="July">July</button>
+            <button class="month-picker-item" data-month="August">August</button>
+            <button class="month-picker-item" data-month="September">September</button>
+            <button class="month-picker-item" data-month="October">October</button>
+            <button class="month-picker-item" data-month="November">November</button>
+            <button class="month-picker-item" data-month="December">December</button>
+        </div>
     </div>
-    <div class="month-picker-grid" id="monthPickerGrid">
-        <button class="month-picker-item" data-month="January">January</button>
-        <button class="month-picker-item" data-month="February">February</button>
-        <button class="month-picker-item" data-month="March">March</button>
-        <button class="month-picker-item" data-month="April">April</button>
-        <button class="month-picker-item" data-month="May">May</button>
-        <button class="month-picker-item" data-month="June">June</button>
-        <button class="month-picker-item active" data-month="July">July</button>
-        <button class="month-picker-item" data-month="August">August</button>
-        <button class="month-picker-item" data-month="September">September</button>
-        <button class="month-picker-item" data-month="October">October</button>
-        <button class="month-picker-item" data-month="November">November</button>
-        <button class="month-picker-item" data-month="December">December</button>
-    </div>
-</div>
 
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      CUSTOM CALENDAR PICKER BOTTOM SHEET
 ═══════════════════════════════════════════ -->
-<div class="custom-sheet" id="calendarPickerSheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-header cal-sheet-header">
-        <button class="cal-nav-btn" id="calPrevMonthBtn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-        <span class="sheet-title" id="calMonthYearTitle">July, 2026</span>
-        <button class="cal-nav-btn" id="calNextMonthBtn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-        </button>
-        <button class="sheet-close" id="closeCalendarSheetBtn">&times;</button>
+    <div class="custom-sheet" id="calendarPickerSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header cal-sheet-header">
+            <button class="cal-nav-btn" id="calPrevMonthBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M15 18l-6-6 6-6" />
+                </svg>
+            </button>
+            <span class="sheet-title" id="calMonthYearTitle">July, 2026</span>
+            <button class="cal-nav-btn" id="calNextMonthBtn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M9 18l6-6-6-6" />
+                </svg>
+            </button>
+            <button class="sheet-close" id="closeCalendarSheetBtn">&times;</button>
+        </div>
+        <div class="cal-weekdays">
+            <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+        </div>
+        <div class="cal-days-grid" id="calDaysGrid">
+            <!-- Rendered calendar days -->
+        </div>
     </div>
-    <div class="cal-weekdays">
-        <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-    </div>
-    <div class="cal-days-grid" id="calDaysGrid">
-        <!-- Rendered calendar days -->
-    </div>
-</div>
 
-<!-- ═══════════════════════════════════════════
+    <!-- ═══════════════════════════════════════════
      CUSTOM CURRENCY PICKER BOTTOM SHEET
 ═══════════════════════════════════════════ -->
-<div class="custom-sheet" id="currencyPickerSheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-header">
-        <span class="sheet-title">Select Currency</span>
-        <button class="sheet-close" id="closeCurrencySheetBtn">&times;</button>
+    <div class="custom-sheet" id="currencyPickerSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title">Select Currency</span>
+            <button class="sheet-close" id="closeCurrencySheetBtn">&times;</button>
+        </div>
+        <div class="currency-picker-list" id="currencyPickerList">
+            <button class="picker-option-item active" data-currency="INR">
+                <span class="picker-option-symbol">₹</span>
+                <span class="picker-option-name">Indian Rupee (INR)</span>
+            </button>
+            <button class="picker-option-item" data-currency="USD">
+                <span class="picker-option-symbol">$</span>
+                <span class="picker-option-name">US Dollar (USD)</span>
+            </button>
+            <button class="picker-option-item" data-currency="EUR">
+                <span class="picker-option-symbol">€</span>
+                <span class="picker-option-name">Euro (EUR)</span>
+            </button>
+        </div>
     </div>
-    <div class="currency-picker-list" id="currencyPickerList">
-        <button class="picker-option-item active" data-currency="INR">
-            <span class="picker-option-symbol">₹</span>
-            <span class="picker-option-name">Indian Rupee (INR)</span>
-        </button>
-        <button class="picker-option-item" data-currency="USD">
-            <span class="picker-option-symbol">$</span>
-            <span class="picker-option-name">US Dollar (USD)</span>
-        </button>
-        <button class="picker-option-item" data-currency="EUR">
-            <span class="picker-option-symbol">€</span>
-            <span class="picker-option-name">Euro (EUR)</span>
-        </button>
+
+    <!-- ═══════════════════════════════════════════
+     EDIT NAME BOTTOM SHEET
+═══════════════════════════════════════════ -->
+    <div class="custom-sheet" id="editNameSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title">Edit Name</span>
+            <button class="sheet-close" id="closeEditNameSheetBtn">&times;</button>
+        </div>
+        <div class="edit-name-body">
+            <input type="text" id="editNameInput" class="tx-input" placeholder="Enter your name" maxlength="30" autocomplete="off">
+            <button class="tx-continue-btn" id="saveNameBtn">Save</button>
+        </div>
     </div>
-</div>
 
-
+    <!-- ═══════════════════════════════════════════
+     AVATAR COLOR PICKER SHEET
+═══════════════════════════════════════════ -->
+    <div class="custom-sheet" id="avatarColorSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <span class="sheet-title">Choose Avatar Color</span>
+            <button class="sheet-close" id="closeAvatarColorSheetBtn">&times;</button>
+        </div>
+        <div class="avatar-color-grid" id="avatarColorGrid">
+            <!-- Dynamically generated color options -->
+        </div>
+    </div>
 
     <!-- ═══════════════════════════════════════════
      DELETE CONFIRMATION MODAL
@@ -526,88 +933,201 @@
         </div>
     </div>
 
-<!-- ═══════════════════════════════════════════
-     BOTTOM NAVIGATION
+    <!-- ═══════════════════════════════════════════
+     BUDGET DELETE CONFIRMATION MODAL
 ═══════════════════════════════════════════ -->
-<nav class="bottom-nav">
-    <button class="nav-item active" data-page="dashboard" id="navHome">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-        <span>Home</span>
-    </button>
-    <button class="nav-item" data-page="history" id="navHistory">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-        <span>Transaction</span>
-    </button>
-    <div class="nav-fab-placeholder"></div>
-    <button class="nav-item" data-page="budget" id="navBudget">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-        <span>Budget</span>
-    </button>
-    <button class="nav-item" data-page="profile" id="navProfile">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span>Profile</span>
-    </button>
-</nav>
-
-<!-- ═══════════════════════════════════════════
-     GLOBAL FAB
-═══════════════════════════════════════════ -->
-<div class="fab-root" id="fabRoot">
-    <div class="fab-mini-row" id="fabMiniRow">
-        <div class="fab-mini-item">
-            <button class="fab-mini income-fab" id="openIncomePage">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-                    <rect x="2" y="5" width="20" height="14" rx="3"/>
-                    <path d="M12 9v6M9 12h6"/>
+    <div class="success-overlay" id="budgetDeleteConfirmOverlay">
+        <div class="success-modal delete-modal">
+            <div class="delete-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FF4B4B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
                 </svg>
-            </button>
-            <span class="fab-mini-label">Income</span>
-        </div>
-        <div class="fab-mini-item">
-            <button class="fab-mini expense-fab" id="openExpensePage">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-                    <rect x="3" y="6" width="18" height="13" rx="2"/>
-                    <path d="M3 10h18"/><path d="M7 15h.01M11 15h2"/>
-                </svg>
-            </button>
-            <span class="fab-mini-label">Expense</span>
+            </div>
+            <p class="success-text">Are you sure you want to delete this budget?</p>
+            <div class="delete-actions">
+                <button class="btn btn-secondary" id="cancelBudgetDeleteBtn">Cancel</button>
+                <button class="btn btn-danger" id="confirmBudgetDeleteBtn">Delete</button>
+            </div>
         </div>
     </div>
 
-    <button class="nav-fab" id="addBtn" title="Add Transaction">
-        <svg class="fab-plus-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-            <path d="M12 5v14M5 12h14"/>
-        </svg>
-    </button>
-</div>
+    <!-- ═══════════════════════════════════════════
+     BOTTOM NAVIGATION (Floating Dock Style)
+═══════════════════════════════════════════ -->
+    <nav class="bottom-nav" id="bottomNav">
+        <div class="nav-indicator" id="navIndicator"></div>
+        <button class="nav-item active" data-page="dashboard" id="navHome" title="Home">
+            <div class="nav-icon-wrap">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+            </div>
+        </button>
+        <button class="nav-item" data-page="history" id="navHistory" title="History">
+            <div class="nav-icon-wrap">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+            </div>
+        </button>
+        <button class="nav-item" data-page="budget" id="navBudget" title="Budget">
+            <div class="nav-icon-wrap">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                    <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path>
+                </svg>
+            </div>
+        </button>
+        <button class="nav-item" data-page="profile" id="navProfile" title="Profile">
+            <div class="nav-icon-wrap">
+                <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                </svg>
+            </div>
+        </button>
+        <button class="nav-item nav-add-btn" id="navAddBtn" title="Add Transaction">
+            <div class="nav-icon-wrap">
+                <svg class="fab-plus-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </div>
+        </button>
+    </nav>
 
-<!-- FAB backdrop -->
-<div class="fab-backdrop" id="fabBackdrop"></div>
-
-<!-- Success Modal -->
-<div class="success-overlay" id="successOverlay">
-    <div class="success-modal">
-        <div class="success-check-icon" style="background: none; box-shadow: none;">
-            <lottie-player src="https://assets3.lottiefiles.com/packages/lf20_niyfyoqs.json" background="transparent" speed="1" style="width: 120px; height: 120px;" autoplay></lottie-player>
+    <!-- ═══════════════════════════════════════════
+     GLOBAL FAB MENU (Floating above Add Button)
+═══════════════════════════════════════════ -->
+    <div class="fab-root" id="fabRoot">
+        <div class="fab-mini-row" id="fabMiniRow">
+            <div class="fab-mini-item">
+                <button class="fab-mini income-fab" id="openIncomePage">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <rect x="2" y="5" width="20" height="14" rx="3" />
+                        <path d="M12 9v6M9 12h6" />
+                    </svg>
+                </button>
+                <span class="fab-mini-label">Income</span>
+            </div>
+            <div class="fab-mini-item">
+                <button class="fab-mini expense-fab" id="openExpensePage">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <rect x="3" y="6" width="18" height="13" rx="2" />
+                        <path d="M3 10h18" />
+                        <path d="M7 15h.01M11 15h2" />
+                    </svg>
+                </button>
+                <span class="fab-mini-label">Expense</span>
+            </div>
         </div>
-        <p class="success-text">Transaction has been successfully added</p>
     </div>
-</div>
 
-<!-- Toast -->
-<div id="toast" class="toast"></div>
+    <!-- FAB backdrop -->
+    <div class="fab-backdrop" id="fabBackdrop"></div>
 
-<!-- Loading -->
-<div id="loadingIndicator" class="loading-indicator">
-    <div class="spinner"></div>
-</div>
+    <!-- Success Modal -->
+    <div class="success-overlay" id="successOverlay">
+        <div class="success-modal">
+            <div class="success-check-icon" style="background: none; box-shadow: none;">
+                <lottie-player src="https://assets3.lottiefiles.com/packages/lf20_niyfyoqs.json"
+                    background="transparent" speed="1" style="width: 120px; height: 120px;" autoplay></lottie-player>
+            </div>
+            <p class="success-text">Transaction has been successfully added</p>
+        </div>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="scripts/config.js"></script>
-<script src="scripts/utils.js"></script>
-<script src="scripts/db.js"></script>
-<script src="scripts/api.js"></script>
-<script src="scripts/ui.js"></script>
-<script src="scripts/app.js"></script>
+    <!-- ═══════════════════════════════════════════
+     FINANCIAL REPORT STORY OVERLAY (WhatsApp/Instagram Style)
+═══════════════════════════════════════════ -->
+    <div class="story-overlay" id="storyOverlay">
+        <button class="story-close-btn" id="storyCloseBtn" title="Close Report">&times;</button>
+        <div class="story-indicators" id="storyIndicators"></div>
+        <div class="story-slides-container" id="storySlidesContainer">
+            <!-- Slide 1: Budget Exceeded (Purple) -->
+            <div class="story-slide story-purple active" data-index="0">
+                <span class="story-month-title">This Month</span>
+                <div class="story-content-center">
+                    <h2 class="story-large-text" id="storyExceedText">0 of 0 Budgets exceeded the limit</h2>
+                    <div class="story-pills-row" id="storyExceedPills"></div>
+                </div>
+            </div>
+            <!-- Slide 2: Spending (Red) -->
+            <div class="story-slide story-red" data-index="1">
+                <span class="story-month-title">This Month</span>
+                <div class="story-content-center">
+                    <p class="story-sub-text">You Spend 💸</p>
+                    <h2 class="story-amount-text" id="storySpendText">₹0</h2>
+                    <div class="story-summary-card" id="storySpendCard">
+                        <p class="story-card-desc">and your biggest spending is from</p>
+                        <div class="story-card-row">
+                            <span class="story-card-icon" id="storySpendIcon">🍜</span>
+                            <span class="story-card-name" id="storySpendCategory">Food</span>
+                        </div>
+                        <span class="story-card-val" id="storySpendAmount">₹0</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Slide 3: Earning (Green) -->
+            <div class="story-slide story-green" data-index="2">
+                <span class="story-month-title">This Month</span>
+                <div class="story-content-center">
+                    <p class="story-sub-text">You Earned 💰</p>
+                    <h2 class="story-amount-text" id="storyEarnText">₹0</h2>
+                    <div class="story-summary-card" id="storyEarnCard">
+                        <p class="story-card-desc">your biggest Income is from</p>
+                        <div class="story-card-row">
+                            <span class="story-card-icon" id="storyEarnIcon">💼</span>
+                            <span class="story-card-name" id="storyEarnCategory">Salary</span>
+                        </div>
+                        <span class="story-card-val" id="storyEarnAmount">₹0</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Slide 4: Quote (Dark Slate) -->
+            <div class="story-slide story-dark" data-index="3">
+                <span class="story-month-title" id="storyQuoteHeader">Quote of the Month</span>
+                <div class="story-content-center">
+                    <p class="story-quote-text" id="storyQuoteText">"Do not save what is left after spending, but spend what is left after saving."</p>
+                    <p class="story-quote-author" id="storyQuoteAuthor">- Warren Buffett</p>
+                    <button class="story-cta-btn" id="storyCtaBtn">See the full detail &rarr;</button>
+                </div>
+            </div>
+        </div>
+        <div class="story-tap-zone left" id="storyTapLeft"></div>
+        <div class="story-tap-zone right" id="storyTapRight"></div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Loading -->
+    <div id="loadingIndicator" class="loading-indicator">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/utils.js"></script>
+    <script src="scripts/db.js"></script>
+    <script src="scripts/api.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script src="scripts/app.js"></script>
 </body>
+
 </html>

@@ -21,6 +21,12 @@ const APP = {
             // Initialize form
             UI.initializeTransactionForm();
 
+            // Check onboarding
+            const onboardingDone = await DB.getSetting('onboardingComplete');
+            if (!onboardingDone) {
+                UI.showOnboarding();
+            }
+
             // Load initial data
             await this.loadData();
 
@@ -45,6 +51,15 @@ const APP = {
             if (syncBtn) {
                 syncBtn.addEventListener('click', () => UI.handleSyncClick());
             }
+
+            // Override category picker clicks to route through handleCategorySelection
+            document.getElementById('categoryPickerList')?.addEventListener('click', e => {
+                const item = e.target.closest('.category-picker-item');
+                if (item) {
+                    e.stopPropagation();
+                    UI.handleCategorySelection(item.dataset.category);
+                }
+            }, true);
 
             // Sync data periodically
             setInterval(() => {
