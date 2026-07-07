@@ -34,6 +34,10 @@ const UI = {
 
     // ─── Page Navigation ─────────────────────────────────────────────────────
     goToPage(pageName) {
+        window.location.hash = `#/${pageName}`;
+    },
+
+    _navigateToPage(pageName) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         const target = document.getElementById(pageName);
         if (target) target.classList.add('active');
@@ -888,6 +892,22 @@ const UI = {
         const namePreviewEl = document.getElementById('settingsNamePreview');
         if (namePreviewEl) namePreviewEl.textContent = name;
 
+        // Set email preview
+        const emailEl = document.getElementById('settingsEmailPreview');
+        if (emailEl) {
+            try {
+                const currentUserJson = localStorage.getItem('currentUser');
+                if (currentUserJson) {
+                    const currentUser = JSON.parse(currentUserJson);
+                    emailEl.textContent = currentUser.email || 'Logged In';
+                } else {
+                    emailEl.textContent = 'Not Logged In';
+                }
+            } catch (e) {
+                emailEl.textContent = 'Logged In';
+            }
+        }
+
         // Set avatar
         const avatarLarge = document.getElementById('profileAvatarLarge');
         if (avatarLarge) avatarLarge.style.background = `linear-gradient(135deg, ${grad[0]} 0%, ${grad[1]} 100%)`;
@@ -1516,6 +1536,12 @@ const UI = {
                 }
             }
         });
+
+        // Setup Auth Event Listeners
+        this.setupAuthEventListeners();
+
+        // Listen for hash changes
+        window.addEventListener('hashchange', () => this.handleRouting());
     },
 
     // ─── Transaction Detail ──────────────────────────────────────────────────
@@ -1646,6 +1672,194 @@ const UI = {
     async handleSyncClick() {
         try { await API.syncQueue(); Utils.showToast('✓ All changes synced!'); await APP.loadData(); }
         catch { Utils.showToast('Sync failed. Check your connection.'); }
+    },
+
+    // ─── Authentication UI ───────────────────────────────────────────────────
+    showAuthScreen() {
+        document.getElementById('authOverlay')?.classList.add('visible');
+        
+        // Hide nav and FAB
+        const bottomNav = document.querySelector('.bottom-nav');
+        const fabRoot = document.getElementById('fabRoot');
+        if (bottomNav) bottomNav.style.display = 'none';
+        if (fabRoot) fabRoot.style.display = 'none';
+    },
+
+    hideAuthScreen() {
+        document.getElementById('authOverlay')?.classList.remove('visible');
+        
+        // Restore nav and FAB
+        const bottomNav = document.querySelector('.bottom-nav');
+        const fabRoot = document.getElementById('fabRoot');
+        if (bottomNav) bottomNav.style.display = '';
+        if (fabRoot) fabRoot.style.display = '';
+    },
+
+    handleRouting() {
+        const currentUser = localStorage.getItem('currentUser');
+        let hash = window.location.hash;
+        
+        // Parse page name from hash (e.g. #/dashboard -> dashboard)
+        let pageName = hash.replace(/^#\/?/, '') || 'splash';
+        
+        // If they are not logged in, they can only view 'splash' or 'login'
+        if (!currentUser) {
+            if (pageName !== 'splash' && pageName !== 'login') {
+                pageName = 'login';
+            }
+        } else {
+            // If they are logged in, prevent visiting 'login' or 'splash'
+            if (pageName === 'login' || pageName === 'splash') {
+                pageName = 'dashboard';
+            }
+        }
+
+        // Show/hide screen overlays based on route
+        if (pageName === 'splash') {
+            this.hideAuthScreen();
+            this._navigateToPage('splash');
+            
+            // Auto redirect from splash after 1500ms
+            if (this._splashTimeout) clearTimeout(this._splashTimeout);
+            this._splashTimeout = setTimeout(() => {
+                const nextUser = localStorage.getItem('currentUser');
+                this.goToPage(nextUser ? 'dashboard' : 'login');
+            }, 1500);
+        } else if (pageName === 'login') {
+            this.showAuthScreen();
+            
+            // Keep a clean fallback visible page behind overlay (e.g., dashboard DOM but hidden/dimmed)
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const dashboardPage = document.getElementById('dashboard');
+            if (dashboardPage) dashboardPage.classList.add('active');
+        } else {
+            this.hideAuthScreen();
+            
+            // Route to target page if page element exists
+            const target = document.getElementById(pageName);
+            if (target && target.classList.contains('page')) {
+                this._navigateToPage(pageName);
+            } else {
+                this.goToPage('dashboard');
+            }
+        }
+    },
+
+    setupAuthEventListeners() {
+        // Toggle forms
+        document.getElementById('switchToRegister')?.addEventListener('click', () => {
+            document.getElementById('loginForm')?.classList.remove('active');
+            document.getElementById('registerForm')?.classList.add('active');
+        });
+
+        document.getElementById('switchToLogin')?.addEventListener('click', () => {
+            document.getElementById('registerForm')?.classList.remove('active');
+            document.getElementById('loginForm')?.classList.add('active');
+        });
+
+        // Submit buttons
+        document.getElementById('loginSubmitBtn')?.addEventListener('click', async () => {
+            const email = document.getElementById('loginEmail')?.value?.trim();
+            const password = document.getElementById('loginPassword')?.value;
+
+            if (!email || !password) {
+                Utils.showToast('Please enter both email and password');
+                return;
+            }
+
+            Utils.showLoading(true);
+            try {
+                const res = await API.login(email, password);
+                if (res.success) {
+                    localStorage.setItem('currentUser', JSON.stringify(res.user));
+                    
+                    // Store display name from user object
+                    const name = res.user.displayName || email.split('@')[0];
+                    await DB.setSetting('displayName', name);
+                    
+                    this.hideAuthScreen();
+                    
+                    // Trigger load data & update
+                    await APP.loadData();
+                    
+                    const onboardingDone = await DB.getSetting('onboardingComplete');
+                    if (!onboardingDone) {
+                        this.showOnboarding();
+                    } else {
+                        this.goToPage('dashboard');
+                    }
+                    
+                    Utils.showToast('Logged in successfully');
+                    
+                    // Reset fields
+                    document.getElementById('loginEmail').value = '';
+                    document.getElementById('loginPassword').value = '';
+                } else {
+                    Utils.showToast(res.error || 'Login failed');
+                }
+            } catch (err) {
+                console.error(err);
+                Utils.showToast('Login failed. Check your internet connection.');
+            } finally {
+                Utils.showLoading(false);
+            }
+        });
+
+        document.getElementById('registerSubmitBtn')?.addEventListener('click', async () => {
+            const displayName = document.getElementById('registerName')?.value?.trim();
+            const email = document.getElementById('registerEmail')?.value?.trim();
+            const password = document.getElementById('registerPassword')?.value;
+            const confirmPassword = document.getElementById('registerConfirmPassword')?.value;
+
+            if (!displayName || !email || !password || !confirmPassword) {
+                Utils.showToast('Please fill out all fields');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                Utils.showToast('Passwords do not match');
+                return;
+            }
+
+            if (password.length < 6) {
+                Utils.showToast('Password must be at least 6 characters');
+                return;
+            }
+
+            Utils.showLoading(true);
+            try {
+                const res = await API.register(email, password, displayName);
+                if (res.success) {
+                    Utils.showToast('Registration successful! Please login.');
+                    // Switch to login form
+                    document.getElementById('registerForm')?.classList.remove('active');
+                    document.getElementById('loginForm')?.classList.add('active');
+                    // Autofill login email
+                    const loginEmailEl = document.getElementById('loginEmail');
+                    if (loginEmailEl) loginEmailEl.value = email;
+                    
+                    // Reset fields
+                    document.getElementById('registerName').value = '';
+                    document.getElementById('registerEmail').value = '';
+                    document.getElementById('registerPassword').value = '';
+                    document.getElementById('registerConfirmPassword').value = '';
+                } else {
+                    Utils.showToast(res.error || 'Registration failed');
+                }
+            } catch (err) {
+                console.error(err);
+                Utils.showToast('Registration failed. Check connection.');
+            } finally {
+                Utils.showLoading(false);
+            }
+        });
+
+        // Logout
+        document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+            localStorage.removeItem('currentUser');
+            Utils.showToast('Logged out');
+            this.goToPage('login');
+        });
     }
 };
 

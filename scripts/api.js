@@ -18,12 +18,14 @@ const API = {
     // Get all transactions from server
     async getTransactions() {
         try {
-            const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const url = `${CONFIG.API_ENDPOINT}?userId=${encodeURIComponent(currentUserId)}`;
+            const response = await this.fetchWithTimeout(url, {
                 method: 'GET'
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ₹{response.statusText}`);
+                throw new Error(`API Error: ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -37,14 +39,15 @@ const API = {
     // Create transaction
     async createTransaction(transaction) {
         try {
+            const currentUserId = DB.getCurrentUserIdSync();
             const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'CREATE', data: transaction })
+                body: JSON.stringify({ action: 'CREATE', data: transaction, userId: currentUserId })
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ₹{response.statusText}`);
+                throw new Error(`API Error: ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -62,14 +65,15 @@ const API = {
     // Update transaction
     async updateTransaction(transaction) {
         try {
+            const currentUserId = DB.getCurrentUserIdSync();
             const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'UPDATE', data: transaction })
+                body: JSON.stringify({ action: 'UPDATE', data: transaction, userId: currentUserId })
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ₹{response.statusText}`);
+                throw new Error(`API Error: ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -87,14 +91,15 @@ const API = {
     // Delete transaction
     async deleteTransaction(id) {
         try {
+            const currentUserId = DB.getCurrentUserIdSync();
             const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'DELETE', data: { id } })
+                body: JSON.stringify({ action: 'DELETE', data: { id }, userId: currentUserId })
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ₹{response.statusText}`);
+                throw new Error(`API Error: ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -106,6 +111,54 @@ const API = {
                 return true;
             }
             throw error;
+        }
+    },
+
+    // Register user
+    async register(email, password, displayName) {
+        try {
+            const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    action: 'REGISTER',
+                    data: { email, password, displayName }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Registration error:', error);
+            return { success: false, error: error.message || error.toString() };
+        }
+    },
+
+    // Login user
+    async login(email, password) {
+        try {
+            const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    action: 'LOGIN',
+                    data: { email, password }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Login error:', error);
+            return { success: false, error: error.message || error.toString() };
         }
     },
 
@@ -125,7 +178,8 @@ const API = {
 
         for (const item of queue) {
             try {
-                const { action, data } = item;
+                const { action, data, userId } = item;
+                const targetUserId = userId || DB.getCurrentUserIdSync();
                 let success = false;
 
                 switch (action) {
@@ -133,7 +187,7 @@ const API = {
                         const createResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'CREATE', data })
+                            body: JSON.stringify({ action: 'CREATE', data, userId: targetUserId })
                         });
                         if (createResp.ok) {
                             success = true;
@@ -143,7 +197,7 @@ const API = {
                         const updateResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'UPDATE', data })
+                            body: JSON.stringify({ action: 'UPDATE', data, userId: targetUserId })
                         });
                         if (updateResp.ok) {
                             success = true;
@@ -153,7 +207,7 @@ const API = {
                         const deleteResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'DELETE', data })
+                            body: JSON.stringify({ action: 'DELETE', data, userId: targetUserId })
                         });
                         if (deleteResp.ok) {
                             success = true;
@@ -174,7 +228,7 @@ const API = {
         UI.updateSyncStatus(true, 0);
 
         if (successCount > 0) {
-            Utils.showToast(`✓ Synced ₹{successCount} transaction(s)`);
+            Utils.showToast(`✓ Synced ${successCount} transaction(s)`);
         }
 
         return successCount === queue.length;

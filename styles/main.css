@@ -2203,3 +2203,213 @@ button {
 .story-cta-btn:active {
     transform: translateY(0);
 }
+
+/* ============================================
+   AUTH OVERLAY
+   ============================================ */
+.auth-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 10000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.auth-overlay.visible {
+    display: flex;
+}
+
+.auth-container {
+    width: 100%;
+    max-width: 380px;
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.auth-illustration {
+    margin-bottom: 24px;
+}
+
+.auth-logo-ring {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, #9D87FF 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 16px 48px rgba(123, 97, 255, 0.35);
+}
+
+.auth-form {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    animation: fadeIn 0.3s ease both;
+}
+
+.auth-form.active {
+    display: flex;
+}
+
+.auth-title {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+}
+
+.auth-desc {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-sub);
+    margin-bottom: 32px;
+}
+
+.auth-field-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.auth-input {
+    width: 100%;
+    padding: 16px 20px;
+    border: 2.5px solid var(--border);
+    border-radius: 16px;
+    background: var(--bg-white);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font);
+    outline: none;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.auth-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--primary-glow);
+    background: var(--bg-white);
+}
+
+.auth-submit-btn {
+    width: 100%;
+    padding: 18px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all 0.2s;
+    box-shadow: 0 8px 24px rgba(123, 97, 255, 0.4);
+    box-sizing: border-box;
+}
+
+.auth-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(123, 97, 255, 0.55);
+}
+
+.auth-submit-btn:active {
+    transform: translateY(0);
+}
+
+.auth-switch-text {
+    margin-top: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-sub);
+}
+
+.auth-switch-link {
+    color: var(--primary);
+    font-weight: 800;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.auth-switch-link:hover {
+    color: #9D87FF;
+}
+
+.settings-row.logout-row:hover .settings-row-icon.red {
+    background: #FF4B4B !important;
+    color: white !important;
+}
+
+/* Splash Screen Styles */
+#splash {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+}
+
+#splash.active {
+    display: flex !important;
+}
+
+.splash-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: fadeInUp 0.8s ease;
+}
+
+.splash-title {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-top: 20px;
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+}
+
+.splash-subtitle {
+    font-size: 14px;
+    color: var(--text-light);
+    margin-bottom: 30px;
+}
+
+.splash-loader {
+    width: 80px;
+    height: 4px;
+    background: rgba(123, 97, 255, 0.15);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.splash-spinner {
+    width: 50%;
+    height: 100%;
+    background: var(--primary);
+    position: absolute;
+    animation: splashLoading 1.5s infinite ease-in-out;
+}
+
+@keyframes splashLoading {
+    0% { left: -50%; }
+    50% { left: 100%; }
+    100% { left: 100%; }
+}

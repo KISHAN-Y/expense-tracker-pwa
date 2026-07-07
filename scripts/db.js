@@ -66,11 +66,27 @@ const DB = {
         return `${y}-${m}-${d}`;
     },
 
+    // Get current logged-in user ID synchronously
+    getCurrentUserIdSync() {
+        try {
+            const userJson = localStorage.getItem('currentUser');
+            if (userJson) {
+                const user = JSON.parse(userJson);
+                if (user && user.id) return user.id;
+            }
+        } catch (e) {
+            console.error('Error reading currentUser from localStorage:', e);
+        }
+        return 'default';
+    },
+
     // ─── Transactions ────────────────────────────────────────────────────────
 
     async addTransaction(transaction) {
         transaction.id = transaction.id || Utils.generateId();
         transaction.createdAt = transaction.createdAt || new Date().toISOString();
+        const currentUserId = this.getCurrentUserIdSync();
+        transaction.userId = transaction.userId || currentUserId;
         // Normalize date at write time so every new record is consistent
         if (transaction.date) transaction.date = this._normalizeDate(transaction.date);
 
@@ -85,6 +101,8 @@ const DB = {
     async updateTransaction(transaction) {
         // Normalize date here too, in case an edit form passes a different format
         if (transaction.date) transaction.date = this._normalizeDate(transaction.date);
+        const currentUserId = this.getCurrentUserIdSync();
+        transaction.userId = transaction.userId || currentUserId;
 
         const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readwrite').objectStore(CONFIG.STORES.TRANSACTIONS);
         return new Promise((resolve, reject) => {
@@ -105,9 +123,13 @@ const DB = {
 
     async getAllTransactions() {
         const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
+        const currentUserId = this.getCurrentUserIdSync();
         return new Promise((resolve, reject) => {
             const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                const list = request.result || [];
+                resolve(list.filter(t => t.userId === currentUserId || (!t.userId && currentUserId === 'default')));
+            };
             request.onerror = () => reject(request.error);
         });
     },
@@ -115,9 +137,13 @@ const DB = {
     async getTransactionsByDate(date) {
         const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
         const index = store.index('date');
+        const currentUserId = this.getCurrentUserIdSync();
         return new Promise((resolve, reject) => {
             const request = index.getAll(date);
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                const list = request.result || [];
+                resolve(list.filter(t => t.userId === currentUserId || (!t.userId && currentUserId === 'default')));
+            };
             request.onerror = () => reject(request.error);
         });
     },
@@ -125,9 +151,13 @@ const DB = {
     async getTransactionsByType(type) {
         const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
         const index = store.index('type');
+        const currentUserId = this.getCurrentUserIdSync();
         return new Promise((resolve, reject) => {
             const request = index.getAll(type);
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                const list = request.result || [];
+                resolve(list.filter(t => t.userId === currentUserId || (!t.userId && currentUserId === 'default')));
+            };
             request.onerror = () => reject(request.error);
         });
     },
@@ -199,8 +229,10 @@ const DB = {
 
     async addToSyncQueue(action, data) {
         const store = this.db.transaction(CONFIG.STORES.SYNC_QUEUE, 'readwrite').objectStore(CONFIG.STORES.SYNC_QUEUE);
+        const currentUserId = this.getCurrentUserIdSync();
+        if (data) data.userId = data.userId || currentUserId;
         return new Promise((resolve, reject) => {
-            const request = store.add({ action, data, timestamp: new Date().toISOString() });
+            const request = store.add({ action, data, userId: currentUserId, timestamp: new Date().toISOString() });
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
@@ -208,9 +240,13 @@ const DB = {
 
     async getSyncQueue() {
         const store = this.db.transaction(CONFIG.STORES.SYNC_QUEUE, 'readonly').objectStore(CONFIG.STORES.SYNC_QUEUE);
+        const currentUserId = this.getCurrentUserIdSync();
         return new Promise((resolve, reject) => {
             const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                const list = request.result || [];
+                resolve(list.filter(q => q.userId === currentUserId || (!q.userId && currentUserId === 'default')));
+            };
             request.onerror = () => reject(request.error);
         });
     },
@@ -230,6 +266,8 @@ const DB = {
         const store = this.db.transaction(CONFIG.STORES.BUDGETS, 'readwrite').objectStore(CONFIG.STORES.BUDGETS);
         budget.id = budget.id || Utils.generateId();
         budget.createdAt = budget.createdAt || new Date().toISOString();
+        const currentUserId = this.getCurrentUserIdSync();
+        budget.userId = budget.userId || currentUserId;
         return new Promise((resolve, reject) => {
             const request = store.add(budget);
             request.onsuccess = () => resolve(budget);
@@ -239,6 +277,8 @@ const DB = {
 
     async updateBudget(budget) {
         const store = this.db.transaction(CONFIG.STORES.BUDGETS, 'readwrite').objectStore(CONFIG.STORES.BUDGETS);
+        const currentUserId = this.getCurrentUserIdSync();
+        budget.userId = budget.userId || currentUserId;
         return new Promise((resolve, reject) => {
             const request = store.put(budget);
             request.onsuccess = () => resolve(budget);
@@ -257,9 +297,13 @@ const DB = {
 
     async getAllBudgets() {
         const store = this.db.transaction(CONFIG.STORES.BUDGETS, 'readonly').objectStore(CONFIG.STORES.BUDGETS);
+        const currentUserId = this.getCurrentUserIdSync();
         return new Promise((resolve, reject) => {
             const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                const list = request.result || [];
+                resolve(list.filter(b => b.userId === currentUserId || (!b.userId && currentUserId === 'default')));
+            };
             request.onerror = () => reject(request.error);
         });
     },
@@ -267,9 +311,13 @@ const DB = {
     async getBudgetsByMonth(monthYear) {
         const store = this.db.transaction(CONFIG.STORES.BUDGETS, 'readonly').objectStore(CONFIG.STORES.BUDGETS);
         const index = store.index('monthYear');
+        const currentUserId = this.getCurrentUserIdSync();
         return new Promise((resolve, reject) => {
             const request = index.getAll(monthYear);
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                const list = request.result || [];
+                resolve(list.filter(b => b.userId === currentUserId || (!b.userId && currentUserId === 'default')));
+            };
             request.onerror = () => reject(request.error);
         });
     },
@@ -281,6 +329,8 @@ const DB = {
         notification.id = notification.id || Utils.generateId();
         notification.createdAt = notification.createdAt || new Date().toISOString();
         notification.read = notification.read || false;
+        const currentUserId = this.getCurrentUserIdSync();
+        notification.userId = notification.userId || currentUserId;
         return new Promise((resolve, reject) => {
             const request = store.add(notification);
             request.onsuccess = () => resolve(notification);
@@ -290,9 +340,13 @@ const DB = {
 
     async getAllNotifications() {
         const store = this.db.transaction(CONFIG.STORES.NOTIFICATIONS, 'readonly').objectStore(CONFIG.STORES.NOTIFICATIONS);
+        const currentUserId = this.getCurrentUserIdSync();
         return new Promise((resolve, reject) => {
             const request = store.getAll();
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                const list = request.result || [];
+                resolve(list.filter(n => n.userId === currentUserId || (!n.userId && currentUserId === 'default')));
+            };
             request.onerror = () => reject(request.error);
         });
     },

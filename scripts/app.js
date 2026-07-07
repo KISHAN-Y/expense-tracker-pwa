@@ -2,9 +2,21 @@
 const APP = {
     editingTransactionId: null,
 
+    targetRoute: 'dashboard',
+    idleTimer: null,
+    IDLE_TIMEOUT: 5 * 60 * 1000, // 5 minutes in milliseconds
+
     // Initialize app
     async init() {
         try {
+            // Save initial hash target before forcing splash
+            let initialHash = window.location.hash;
+            let targetRoute = initialHash.replace(/^#\/?/, '') || 'dashboard';
+            if (targetRoute === 'splash' || targetRoute === 'login') {
+                targetRoute = 'dashboard';
+            }
+            this.targetRoute = targetRoute;
+
             // Initialize database
             await DB.init();
             console.log('Database initialized');
@@ -21,14 +33,27 @@ const APP = {
             // Initialize form
             UI.initializeTransactionForm();
 
-            // Check onboarding
-            const onboardingDone = await DB.getSetting('onboardingComplete');
-            if (!onboardingDone) {
-                UI.showOnboarding();
+            // Check session & load data
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                // Check onboarding
+                const onboardingDone = await DB.getSetting('onboardingComplete');
+                if (!onboardingDone) {
+                    UI.showOnboarding();
+                }
+
+                // Load initial data
+                await this.loadData();
             }
 
-            // Load initial data
-            await this.loadData();
+            // Start idle timer for auto logout
+            this.startIdleTimer();
+
+            // Force splash screen on first load
+            window.location.hash = '#/splash';
+            
+            // Trigger initial routing
+            UI.handleRouting();
 
             // Register service worker & initialize 3-hour notification reminders
             if ('serviceWorker' in navigator) {
@@ -411,6 +436,36 @@ const APP = {
         console.log('Device is offline');
         await this.updateSyncIndicators();
         Utils.showToast('⊘ Offline mode - Changes will sync when online');
+    },
+
+    // Idle timer methods
+    startIdleTimer() {
+        this.resetIdleTimer();
+        
+        // Listeners for user activity
+        const activityEvents = ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'];
+        activityEvents.forEach(evt => {
+            window.addEventListener(evt, () => this.resetIdleTimer(), { passive: true });
+        });
+    },
+
+    resetIdleTimer() {
+        if (this.idleTimer) clearTimeout(this.idleTimer);
+        
+        const currentUser = localStorage.getItem('currentUser');
+        if (!currentUser) return; // Only track idle if logged in
+        
+        this.idleTimer = setTimeout(() => this.handleIdleLogout(), this.IDLE_TIMEOUT);
+    },
+
+    handleIdleLogout() {
+        const currentUser = localStorage.getItem('currentUser');
+        if (!currentUser) return;
+        
+        console.log('User logged out due to inactivity');
+        localStorage.removeItem('currentUser');
+        Utils.showToast('Logged out due to inactivity');
+        UI.goToPage('login');
     }
 };
 
