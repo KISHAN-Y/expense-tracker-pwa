@@ -1107,6 +1107,7 @@ const UI = {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', () => {
                 const pageName = item.dataset.page;
+                if (!pageName) return; // Skip if no page defined (e.g. FAB button)
                 this.goToPage(pageName);
                 if (pageName === 'history') this.renderHistoryTransactions();
             });

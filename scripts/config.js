@@ -2,7 +2,7 @@
 const CONFIG = {
     APP_NAME: 'Expense Tracker',
     VERSION: '2.0.0',
-    CACHE_VERSION: 'v5',
+    CACHE_VERSION: 'v6',
     API_ENDPOINT: 'https://script.google.com/macros/s/AKfycbxsxkyW5Ft_mCLNtcP59SFQMwh5RJCO2mIN-_MuZt5S2okARQC0U9L80KxMUGmohdJ9/exec', // Replace with your Google Apps Script URL
     CURRENCIES: {
         INR: { symbol: '₹', name: 'Indian Rupee' },
