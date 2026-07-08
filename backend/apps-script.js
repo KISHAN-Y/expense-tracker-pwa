@@ -55,10 +55,10 @@ function getUsersSheet() {
             SpreadsheetApp.flush();
         } else {
             const headers = data[0];
-            
+
             // Check if it's a data row instead of a header row (e.g. starts with 'u-')
             const isDataRow = headers[0] && headers[0].toString().substring(0, 2) === 'u-';
-            
+
             if (isDataRow) {
                 // Insert a new header row at the top
                 sheet.insertRowBefore(1);
@@ -68,7 +68,7 @@ function getUsersSheet() {
                 // It is a header row, make sure all required fields are present
                 const required = ['UserId', 'Email', 'PasswordHash', 'Salt', 'CreatedAt', 'DisplayName'];
                 let modified = false;
-                
+
                 required.forEach((colName, index) => {
                     if (findHeaderIndex(headers, colName) === -1) {
                         if (index < headers.length) {
@@ -80,7 +80,7 @@ function getUsersSheet() {
                         modified = true;
                     }
                 });
-                
+
                 if (modified) {
                     SpreadsheetApp.flush();
                 }
@@ -130,16 +130,16 @@ function findHeaderIndex(headers, columnName) {
 function ensureUsersHeaders(usersSheet) {
     const REQUIRED_HEADERS = ['UserId', 'Email', 'PasswordHash', 'Salt', 'CreatedAt', 'DisplayName'];
     var data = usersSheet.getDataRange().getValues();
-    
+
     // Empty sheet — just write headers
     if (data.length === 0) {
         usersSheet.appendRow(REQUIRED_HEADERS);
         SpreadsheetApp.flush();
         return usersSheet.getDataRange().getValues();
     }
-    
+
     var headers = data[0];
-    
+
     // Check if row 1 looks like user data instead of headers (starts with 'u-')
     var firstCell = headers[0] ? headers[0].toString().trim() : '';
     if (firstCell.substring(0, 2) === 'u-' || firstCell === '') {
@@ -149,7 +149,7 @@ function ensureUsersHeaders(usersSheet) {
         SpreadsheetApp.flush();
         return usersSheet.getDataRange().getValues();
     }
-    
+
     // Row 1 is a header row — check each required column exists
     var needsFlush = false;
     var nextCol = headers.length + 1;
@@ -177,12 +177,12 @@ function registerUser(email, password, displayName) {
         if (!email || !password) {
             return { success: false, error: 'Email and password are required' };
         }
-        
+
         email = email.trim().toLowerCase();
         var usersSheet = getUsersSheet();
         var data = ensureUsersHeaders(usersSheet);
         var headers = data[0];
-        
+
         // Find indices dynamically
         var emailIdx = findHeaderIndex(headers, 'Email');
         var hashIdx = findHeaderIndex(headers, 'PasswordHash');
@@ -190,7 +190,7 @@ function registerUser(email, password, displayName) {
         var idIdx = findHeaderIndex(headers, 'UserId');
         var createdAtIdx = findHeaderIndex(headers, 'CreatedAt');
         var dispNameIdx = findHeaderIndex(headers, 'DisplayName');
-        
+
         // Check if user already exists
         for (var i = 1; i < data.length; i++) {
             var rowEmail = data[i][emailIdx] ? data[i][emailIdx].toString().trim().toLowerCase() : '';
@@ -198,12 +198,12 @@ function registerUser(email, password, displayName) {
                 return { success: false, error: 'User already exists' };
             }
         }
-        
+
         var userId = 'u-' + generateRandomHex(16);
         var salt = generateRandomHex(16);
         var hash = hashPassword(password, salt);
         var createdAt = new Date().toISOString();
-        
+
         // Construct row — always use fixed column order [UserId, Email, PasswordHash, Salt, CreatedAt, DisplayName]
         var row = new Array(headers.length);
         for (var c = 0; c < row.length; c++) row[c] = '';
@@ -215,13 +215,13 @@ function registerUser(email, password, displayName) {
         if (dispNameIdx !== -1) {
             row[dispNameIdx] = displayName || '';
         }
-        
+
         usersSheet.appendRow(row);
         SpreadsheetApp.flush();
-        
+
         // Send welcome email
         sendWelcomeEmail(email, displayName);
-        
+
         return {
             success: true,
             user: { id: userId, email: email, displayName: displayName }
@@ -237,26 +237,26 @@ function loginUser(email, password) {
         if (!email || !password) {
             return { success: false, error: 'Email and password are required' };
         }
-        
+
         email = email.trim().toLowerCase();
         var usersSheet = getUsersSheet();
         var data = ensureUsersHeaders(usersSheet);
         var headers = data[0];
-        
+
         // Find indices dynamically
         var emailIdx = findHeaderIndex(headers, 'Email');
         var hashIdx = findHeaderIndex(headers, 'PasswordHash');
         var saltIdx = findHeaderIndex(headers, 'Salt');
         var idIdx = findHeaderIndex(headers, 'UserId');
         var dispNameIdx = findHeaderIndex(headers, 'DisplayName');
-        
+
         for (var i = 1; i < data.length; i++) {
             var rowEmail = data[i][emailIdx] ? data[i][emailIdx].toString().trim().toLowerCase() : '';
             if (rowEmail === email) {
                 var storedHash = data[i][hashIdx];
                 var salt = data[i][saltIdx];
                 var computedHash = hashPassword(password, salt);
-                
+
                 if (computedHash === storedHash) {
                     var dispName = (dispNameIdx !== -1 && data[i][dispNameIdx]) ? data[i][dispNameIdx] : email.split('@')[0];
                     return {
@@ -268,7 +268,7 @@ function loginUser(email, password) {
                 }
             }
         }
-        
+
         return { success: false, error: 'User not found' };
     } catch (error) {
         return { success: false, error: error.toString() };
@@ -291,18 +291,18 @@ function doGet(e) {
     try {
         const sheet = getSheet();
         const data = sheet.getDataRange().getValues();
-        
+
         // Get userId from request query parameter
         const reqUserId = e && e.parameter && e.parameter.userId ? e.parameter.userId : 'default';
-        
+
         // Convert to array of objects (skip header)
         const transactions = [];
         const headers = data[0];
         const userIdIdx = headers.indexOf('UserId');
-        
+
         for (let i = 1; i < data.length; i++) {
             const rowUserId = userIdIdx !== -1 ? data[i][userIdIdx] : '';
-            
+
             // Only return rows matching reqUserId. For backward compatibility, map empty userId to 'default'
             if (rowUserId === reqUserId || (!rowUserId && reqUserId === 'default')) {
                 transactions.push({
@@ -341,6 +341,10 @@ function doPost(e) {
                 return updateTransaction(actionData, userId);
             case 'DELETE':
                 return deleteTransaction(actionData, userId);
+            case 'SEND_PROMO_EMAIL':
+                return createCorsResponse(sendPromotionalEmail(actionData.email));
+            case 'SEND_REPORT_EMAIL':
+                return createCorsResponse(sendFinancialReportEmail(actionData.email, actionData.reportData));
             default:
                 return errorResponse('Invalid action');
         }
@@ -377,7 +381,7 @@ function createTransaction(transaction, userId) {
         const sheet = getSheet();
         const headers = sheet.getDataRange().getValues()[0];
         const userIdIdx = headers.indexOf('UserId');
-        
+
         const row = [
             transaction.id,
             transaction.date,
@@ -387,20 +391,20 @@ function createTransaction(transaction, userId) {
             transaction.description || '',
             new Date().toISOString()
         ];
-        
+
         if (userIdIdx !== -1) {
             row[userIdIdx] = userId || 'default';
         } else {
             row.push(userId || 'default');
         }
-        
+
         sheet.appendRow(row);
         SpreadsheetApp.flush();
-        
-        return createCorsResponse({ 
-            success: true, 
+
+        return createCorsResponse({
+            success: true,
             message: 'Transaction created',
-            transaction: transaction 
+            transaction: transaction
         });
     } catch (error) {
         return errorResponse(error.toString());
@@ -415,17 +419,17 @@ function updateTransaction(transaction, userId) {
         const headers = data[0];
         const userIdIdx = headers.indexOf('UserId');
         const targetUserId = userId || 'default';
-        
+
         // Find and update the row
         for (let i = 1; i < data.length; i++) {
             if (data[i][0] === transaction.id) {
                 const rowUserId = userIdIdx !== -1 ? data[i][userIdIdx] : '';
-                
+
                 // Check ownership
                 if (rowUserId && rowUserId !== targetUserId) {
                     return errorResponse('Unauthorized: You do not own this transaction');
                 }
-                
+
                 const updatedRow = [
                     transaction.id,
                     transaction.date,
@@ -435,22 +439,22 @@ function updateTransaction(transaction, userId) {
                     transaction.description || '',
                     data[i][6] // Keep original createdAt
                 ];
-                
+
                 if (userIdIdx !== -1) {
                     updatedRow[userIdIdx] = targetUserId;
                 }
-                
+
                 sheet.getRange(i + 1, 1, 1, Math.max(7, userIdIdx + 1)).setValues([updatedRow]);
                 SpreadsheetApp.flush();
-                
-                return createCorsResponse({ 
-                    success: true, 
+
+                return createCorsResponse({
+                    success: true,
                     message: 'Transaction updated',
-                    transaction: transaction 
+                    transaction: transaction
                 });
             }
         }
-        
+
         return errorResponse('Transaction not found');
     } catch (error) {
         return errorResponse(error.toString());
@@ -465,27 +469,27 @@ function deleteTransaction(data, userId) {
         const headers = sheetData[0];
         const userIdIdx = headers.indexOf('UserId');
         const targetUserId = userId || 'default';
-        
+
         // Find and delete the row
         for (let i = 1; i < sheetData.length; i++) {
             if (sheetData[i][0] === data.id) {
                 const rowUserId = userIdIdx !== -1 ? sheetData[i][userIdIdx] : '';
-                
+
                 // Check ownership
                 if (rowUserId && rowUserId !== targetUserId) {
                     return errorResponse('Unauthorized: You do not own this transaction');
                 }
-                
+
                 sheet.deleteRow(i + 1);
                 SpreadsheetApp.flush();
-                
-                return createCorsResponse({ 
-                    success: true, 
+
+                return createCorsResponse({
+                    success: true,
                     message: 'Transaction deleted'
                 });
             }
         }
-        
+
         return errorResponse('Transaction not found');
     } catch (error) {
         return errorResponse(error.toString());
@@ -504,34 +508,55 @@ function testSendEmail() {
     var myEmail = Session.getActiveUser().getEmail();
     Logger.log('Attempting to send test email to: ' + myEmail);
     Logger.log('Daily email quota remaining: ' + MailApp.getRemainingDailyQuota());
-    
+
     MailApp.sendEmail({
         to: myEmail,
         subject: 'Spendlyst Test Email ✅',
         htmlBody: '<h2>It works!</h2><p>If you see this, welcome emails will now work automatically.</p>'
     });
-    
+
     Logger.log('Test email sent successfully!');
+}
+
+function testSendPromotionalEmail() {
+    var email = 'kishaninvesq@gmail.com';
+    Logger.log('Testing promotional email to ' + email);
+    sendPromotionalEmail(email);
+}
+
+function testSendFinancialReportEmail() {
+    var email = 'kishaninvesq@gmail.com';
+    var mockData = {
+        totalIncome: '45000',
+        totalExpense: '12500',
+        incomePercentage: '78',
+        expensePercentage: '22',
+        foodExpense: '4500',
+        shoppingExpense: '2000',
+        transportExpense: '1500'
+    };
+    Logger.log('Testing financial report email to ' + email);
+    sendFinancialReportEmail(email, mockData);
 }
 
 // Send welcome email using MailApp (simplest Google-native email service)
 function sendWelcomeEmail(userEmail, displayName) {
     try {
         var userName = displayName || userEmail.split('@')[0];
-        var appLink = 'http://localhost:5500'; // Change to your live hosting domain when deployed
-        
+        var appLink = 'https://spendlyst.tech'; // Change to your live hosting domain when deployed
+
         var htmlBody = WELCOME_EMAIL_TEMPLATE
             .replace(/\{\{USER_NAME\}\}/g, userName)
             .replace(/\{\{USER_EMAIL\}\}/g, userEmail)
             .replace(/\{\{APP_LINK\}\}/g, appLink);
-            
+
         MailApp.sendEmail({
             to: userEmail,
             subject: 'Welcome to Spendlyst 🎉',
             body: 'Welcome to Spendlyst, ' + userName + '! Open the app to get started.',
             htmlBody: htmlBody
         });
-        
+
         Logger.log('Welcome email sent to ' + userEmail);
     } catch (e) {
         Logger.log('EMAIL ERROR: ' + e.toString());
@@ -691,4 +716,416 @@ const WELCOME_EMAIL_TEMPLATE = `<!DOCTYPE html>
 
 </body>
 </html>`;
+// Send promotional email
+function sendPromotionalEmail(userEmail) {
+    try {
+        MailApp.sendEmail({
+            to: userEmail,
+            subject: 'Spendlyst - Take Control of Your Finances 🚀',
+            htmlBody: PROMOTIONAL_EMAIL_TEMPLATE
+        });
+        Logger.log('Promotional email sent to ' + userEmail);
+        return { success: true, message: 'Promotional email sent to ' + userEmail };
+    } catch (e) {
+        Logger.log('EMAIL ERROR: ' + e.toString());
+        return { success: false, error: e.toString() };
+    }
+}
 
+// Send financial report email
+function sendFinancialReportEmail(userEmail, reportData) {
+    try {
+        var htmlBody = FINANCIAL_REPORT_TEMPLATE
+            .replace(/\{\{totalIncome\}\}/g, reportData.totalIncome || '0')
+            .replace(/\{\{totalExpense\}\}/g, reportData.totalExpense || '0')
+            .replace(/\{\{incomePercentage\}\}/g, reportData.incomePercentage || '0')
+            .replace(/\{\{expensePercentage\}\}/g, reportData.expensePercentage || '0')
+            .replace(/\{\{foodExpense\}\}/g, reportData.foodExpense || '0')
+            .replace(/\{\{shoppingExpense\}\}/g, reportData.shoppingExpense || '0')
+            .replace(/\{\{transportExpense\}\}/g, reportData.transportExpense || '0');
+
+        MailApp.sendEmail({
+            to: userEmail,
+            subject: 'Your Bi-Weekly Financial Report 📊',
+            htmlBody: htmlBody
+        });
+        Logger.log('Financial report email sent to ' + userEmail);
+        return { success: true, message: 'Financial report email sent to ' + userEmail };
+    } catch (e) {
+        Logger.log('EMAIL ERROR: ' + e.toString());
+        return { success: false, error: e.toString() };
+    }
+}
+
+// Promotional email HTML template
+var PROMOTIONAL_EMAIL_TEMPLATE = `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml"
+    xmlns:o="urn:schemas-microsoft-com:office:office">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spendlyst - Take Control of Your Finances</title>
+    <!--[if !mso]><!-->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500&display=swap"
+        rel="stylesheet">
+    <!--<![endif]-->
+    <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:AllowPNG/>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
+</head>
+
+<body
+    style="margin:0; padding:0; background-color:#F5F5F8; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+
+    <!-- Preheader -->
+    <div style="display:none; max-height:0; overflow:hidden; mso-hide:all;">
+        Ready to master your money? Track your income, monitor expenses, and build your dashboard.
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+        style="background-color:#F5F5F8; padding: 56px 0;">
+        <tr>
+            <td align="center">
+
+                <!-- Main Workspace Card -->
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+                    style="max-width:600px; width:100%; background-color:#FFFFFF; border-radius:24px; overflow:hidden; box-shadow:0 8px 32px rgba(20, 20, 35, 0.02);">
+
+                    <!-- Top Branding Layer -->
+                    <tr>
+                        <td style="padding: 56px 56px 40px 56px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="left" style="vertical-align: middle; width: 40px;">
+                                        <img src="https://spendlyst.tech/assets/icon-192.png" alt="Spendlyst" width="40"
+                                            height="40"
+                                            style="display:block; border:0; outline:none; width:40px; height:40px;">
+                                    </td>
+                                    <td align="left" style="padding-left: 12px; vertical-align: middle;">
+                                        <div
+                                            style="font-size: 18px; font-weight: 700; color: #111111; letter-spacing: -0.02em;">
+                                            Spendlyst</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Editorial Introduction -->
+                    <tr>
+                        <td style="padding: 0 56px 36px 56px;">
+                            <h1
+                                style="margin: 0 0 16px 0; font-size: 30px; font-weight: 700; color: #111111; line-height: 1.25; letter-spacing: -0.03em;">
+                                Ready to master your money?
+                            </h1>
+                            <p
+                                style="margin: 0; font-size: 15px; color: #666470; line-height: 1.6; font-family: 'Inter', sans-serif;">
+                                Hi there,&nbsp;&nbsp;&bull;&nbsp;&nbsp;Managing personal finances doesn’t have to feel
+                                like a structural chore. Spendlyst shifts the paradigm, putting full cash-flow metrics
+                                right at your fingertips.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- High-Trust Creative Feature Layout (Tonal Shifts Only) -->
+                    <tr>
+                        <td style="padding: 0 56px 40px 56px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="background-color: #FAF9FC; border-radius: 16px;">
+                                <tr>
+                                    <td style="padding: 32px;">
+
+                                        <!-- Core Multi-Engine Feature Highlight -->
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                            style="margin-bottom: 24px;">
+                                            <tr>
+                                                <td style="vertical-align: top; width: 24px; padding-top: 2px;">
+                                                    <span
+                                                        style="color: #5B3DE0; font-size: 16px; font-weight: bold;">&rarr;</span>
+                                                </td>
+                                                <td style="padding-left: 12px;">
+                                                    <div
+                                                        style="font-size: 15px; font-weight: 600; color: #111111; letter-spacing: -0.01em;">
+                                                        Automated Ledger Dynamics</div>
+                                                    <div
+                                                        style="font-size: 13.5px; color: #666470; margin-top: 4px; line-height: 1.5; font-family: 'Inter', sans-serif;">
+                                                        Instantly categorize cash inflows and outward velocities inside
+                                                        a clean workspace architecture.</div>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Standout Local Capability Callout -->
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="vertical-align: top; width: 24px; padding-top: 2px;">
+                                                    <span
+                                                        style="color: #5B3DE0; font-size: 16px; font-weight: bold;">&rarr;</span>
+                                                </td>
+                                                <td style="padding-left: 12px;">
+                                                    <div
+                                                        style="font-size: 15px; font-weight: 600; color: #111111; letter-spacing: -0.01em;">
+                                                        100% Offline Sync Architecture
+                                                        <span
+                                                            style="display: inline-block; background-color: #EBE8FF; color: #5B3DE0; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 6px; margin-left: 6px; letter-spacing: 0.04em; font-family: 'Inter', sans-serif;">Local
+                                                            First</span>
+                                                    </div>
+                                                    <div
+                                                        style="font-size: 13.5px; color: #666470; margin-top: 4px; line-height: 1.5; font-family: 'Inter', sans-serif;">
+                                                        Your database lives securely on-device. Access sub-second
+                                                        dashboard rendering and insights completely independent of a
+                                                        network connection.</div>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Primary Direct Action Layer -->
+                    <tr>
+                        <td style="padding: 0 56px 48px 56px;" align="center">
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td align="center">
+                                        <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="https://spendlyst.tech/#/dashboard" style="height:52px;v-text-anchor:middle;width:488px;" arcsize="24%" stroke="f" fillcolor="#5B3DE0">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">Initialize Your Dashboard &rarr;</center>
+                    </v:roundrect>
+                    <![endif]-->
+                                        <!--[if !mso]><!-->
+                                        <a href="https://spendlyst.tech/#/dashboard" target="_blank"
+                                            style="display:block; background-color:#5B3DE0; border-radius:12px; padding:16px 32px; font-size:15px; font-weight:600; color:#ffffff; text-decoration:none; text-align:center; letter-spacing: -0.01em; box-shadow: 0 12px 24px rgba(91, 61, 224, 0.15);">
+                                            Initialize Your Dashboard &rarr;
+                                        </a>
+                                        <!--<![endif]-->
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Signature Block -->
+                    <tr>
+                        <td style="padding: 0 56px 56px 56px;">
+                            <p
+                                style="margin: 0; font-size: 15px; color: #666470; line-height: 1.6; font-family: 'Inter', sans-serif;">
+                                Join thousands tracking wealth safely through local execution engines.<br><br>
+                                Best regards,<br>
+                                <span style="color: #111111; font-weight: 600;">The Spendlyst Team</span>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Sub-Card Structural Footer Space -->
+                    <tr>
+                        <td style="padding: 32px 56px; background-color:#FAF9FC;" align="center">
+                            <p
+                                style="margin:0 0 12px 0; font-size:11px; color:#A19FB0; line-height:1.5; font-family: 'Inter', sans-serif;">
+                                You are receiving this communication due to an active sub-layer notification request
+                                with Spendlyst Core.
+                            </p>
+                            <p style="margin:0; font-size:12px; font-weight:500;">
+                                <a href="#" style="color:#5B3DE0; text-decoration:none;">Unsubscribe Workspace</a>
+                                <span style="color:#D1CDE0; margin: 0 8px;">&bull;</span>
+                                <a href="#" style="color:#5B3DE0; text-decoration:none;">Privacy Parameters</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>`;
+
+// Financial report email HTML template
+var FINANCIAL_REPORT_TEMPLATE = `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml"
+    xmlns:o="urn:schemas-microsoft-com:office:office">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bi-Weekly Financial Report</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body
+    style="margin:0; padding:0; background-color:#F5F4F8; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased;">
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+        style="background-color:#F5F4F8; padding: 64px 0;">
+        <tr>
+            <td align="center">
+
+                <!-- Main Report Container -->
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+                    style="max-width:600px; width:100%; background-color:#FFFFFF; border-radius:24px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.03);">
+
+                    <!-- Report Header -->
+                    <tr>
+                        <td style="padding: 56px 56px 40px 56px; background-color: #FFFFFF;">
+                            <div
+                                style="font-size: 12px; font-weight: 700; color: #5B3DE0; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">
+                                Financial Ledger
+                            </div>
+                            <h1
+                                style="margin: 0; font-size: 32px; font-weight: 700; color: #111111; letter-spacing: -0.03em;">
+                                Bi-Weekly Summary
+                            </h1>
+                            <div
+                                style="margin-top: 12px; font-size: 15px; color: #888694; font-family: 'Inter', sans-serif;">
+                                July 1 – July 15, 2026
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Summary Section (Tonal Separation) -->
+                    <tr>
+                        <td style="padding: 0 56px 40px 56px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <!-- Income Box -->
+                                    <td width="48%"
+                                        style="background-color: #F0FDF4; border-radius: 16px; padding: 24px;">
+                                        <div
+                                            style="font-size: 11px; font-weight: 700; color: #15803D; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                                            Total Income</div>
+                                        <div
+                                            style="font-size: 20px; font-weight: 700; color: #111111; font-family: 'Inter', sans-serif;">
+                                            ₹{{totalIncome}}</div>
+                                    </td>
+                                    <td width="4%">&nbsp;</td>
+                                    <!-- Expense Box -->
+                                    <td width="48%"
+                                        style="background-color: #FFF1F2; border-radius: 16px; padding: 24px;">
+                                        <div
+                                            style="font-size: 11px; font-weight: 700; color: #B91C1C; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                                            Total Expenses</div>
+                                        <div
+                                            style="font-size: 20px; font-weight: 700; color: #111111; font-family: 'Inter', sans-serif;">
+                                            ₹{{totalExpense}}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Visualization Block -->
+                    <tr>
+                        <td style="padding: 0 56px 48px 56px;">
+                            <div style="font-size: 14px; font-weight: 600; color: #111111; margin-bottom: 16px;">Flow
+                                Analysis</div>
+
+                            <!-- Multi-Segment Progress Bar -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="height: 12px; border-radius: 6px; overflow: hidden; background-color: #F0F0F2;">
+                                <tr>
+                                    <td width="{{incomePercentage}}%" style="background-color: #22C55E;"></td>
+                                    <td width="{{expensePercentage}}%" style="background-color: #EF4444;"></td>
+                                </tr>
+                            </table>
+
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="margin-top: 12px;">
+                                <tr>
+                                    <td align="left" style="font-size: 12px; font-weight: 600; color: #22C55E;">
+                                        {{incomePercentage}}% Income</td>
+                                    <td align="right" style="font-size: 12px; font-weight: 600; color: #EF4444;">
+                                        {{expensePercentage}}% Expense</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Top Spending Section (Spacing-based list) -->
+                    <tr>
+                        <td style="background-color: #FAF9FC; padding: 48px 56px;">
+                            <div style="font-size: 14px; font-weight: 600; color: #111111; margin-bottom: 24px;">Top
+                                Expenditures</div>
+
+                            <!-- List Item 1 -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="margin-bottom: 20px;">
+                                <tr>
+                                    <td width="40">
+                                        <div
+                                            style="width: 32px; height: 32px; background-color: #ECECF2; border-radius: 8px; text-align: center; line-height: 32px; font-size: 16px;">
+                                            🍔</div>
+                                    </td>
+                                    <td style="font-size: 14.5px; font-weight: 500; color: #111111;">Food & Dining</td>
+                                    <td align="right" style="font-size: 14.5px; font-weight: 600; color: #111111;">
+                                        ₹{{foodExpense}}</td>
+                                </tr>
+                            </table>
+
+                            <!-- List Item 2 -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="margin-bottom: 20px;">
+                                <tr>
+                                    <td width="40">
+                                        <div
+                                            style="width: 32px; height: 32px; background-color: #ECECF2; border-radius: 8px; text-align: center; line-height: 32px; font-size: 16px;">
+                                            🛍️</div>
+                                    </td>
+                                    <td style="font-size: 14.5px; font-weight: 500; color: #111111;">Shopping</td>
+                                    <td align="right" style="font-size: 14.5px; font-weight: 600; color: #111111;">
+                                        ₹{{shoppingExpense}}</td>
+                                </tr>
+                            </table>
+
+                            <!-- List Item 3 -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="40">
+                                        <div
+                                            style="width: 32px; height: 32px; background-color: #ECECF2; border-radius: 8px; text-align: center; line-height: 32px; font-size: 16px;">
+                                            🚗</div>
+                                    </td>
+                                    <td style="font-size: 14.5px; font-weight: 500; color: #111111;">Transport</td>
+                                    <td align="right" style="font-size: 14.5px; font-weight: 600; color: #111111;">
+                                        ₹{{transportExpense}}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- CTA Block -->
+                    <tr>
+                        <td style="padding: 48px 56px 56px 56px;" align="center">
+                            <a href="https://spendlyst.tech/#/dashboard"
+                                style="display:inline-block; background-color:#5B3DE0; color:#ffffff; text-decoration:none; padding:16px 32px; border-radius:12px; font-weight:600; font-size:14px; letter-spacing: -0.01em;">
+                                View Full Analysis &rarr;
+                            </a>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>`;

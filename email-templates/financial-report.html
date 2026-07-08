@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml"
+    xmlns:o="urn:schemas-microsoft-com:office:office">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bi-Weekly Financial Report</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body
+    style="margin:0; padding:0; background-color:#F5F4F8; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased;">
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+        style="background-color:#F5F4F8; padding: 64px 0;">
+        <tr>
+            <td align="center">
+
+                <!-- Main Report Container -->
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+                    style="max-width:600px; width:100%; background-color:#FFFFFF; border-radius:24px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,0.03);">
+
+                    <!-- Report Header -->
+                    <tr>
+                        <td style="padding: 56px 56px 40px 56px; background-color: #FFFFFF;">
+                            <div
+                                style="font-size: 12px; font-weight: 700; color: #5B3DE0; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">
+                                Financial Ledger
+                            </div>
+                            <h1
+                                style="margin: 0; font-size: 32px; font-weight: 700; color: #111111; letter-spacing: -0.03em;">
+                                Bi-Weekly Summary
+                            </h1>
+                            <div
+                                style="margin-top: 12px; font-size: 15px; color: #888694; font-family: 'Inter', sans-serif;">
+                                July 1 – July 15, 2026
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- Summary Section (Tonal Separation) -->
+                    <tr>
+                        <td style="padding: 0 56px 40px 56px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <!-- Income Box -->
+                                    <td width="48%"
+                                        style="background-color: #F0FDF4; border-radius: 16px; padding: 24px;">
+                                        <div
+                                            style="font-size: 11px; font-weight: 700; color: #15803D; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                                            Total Income</div>
+                                        <div
+                                            style="font-size: 20px; font-weight: 700; color: #111111; font-family: 'Inter', sans-serif;">
+                                            ₹{{totalIncome}}</div>
+                                    </td>
+                                    <td width="4%">&nbsp;</td>
+                                    <!-- Expense Box -->
+                                    <td width="48%"
+                                        style="background-color: #FFF1F2; border-radius: 16px; padding: 24px;">
+                                        <div
+                                            style="font-size: 11px; font-weight: 700; color: #B91C1C; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+                                            Total Expenses</div>
+                                        <div
+                                            style="font-size: 20px; font-weight: 700; color: #111111; font-family: 'Inter', sans-serif;">
+                                            ₹{{totalExpense}}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Visualization Block -->
+                    <tr>
+                        <td style="padding: 0 56px 48px 56px;">
+                            <div style="font-size: 14px; font-weight: 600; color: #111111; margin-bottom: 16px;">Flow
+                                Analysis</div>
+
+                            <!-- Multi-Segment Progress Bar -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="height: 12px; border-radius: 6px; overflow: hidden; background-color: #F0F0F2;">
+                                <tr>
+                                    <td width="{{incomePercentage}}%" style="background-color: #22C55E;"></td>
+                                    <td width="{{expensePercentage}}%" style="background-color: #EF4444;"></td>
+                                </tr>
+                            </table>
+
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="margin-top: 12px;">
+                                <tr>
+                                    <td align="left" style="font-size: 12px; font-weight: 600; color: #22C55E;">
+                                        {{incomePercentage}}% Income</td>
+                                    <td align="right" style="font-size: 12px; font-weight: 600; color: #EF4444;">
+                                        {{expensePercentage}}% Expense</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Top Spending Section (Spacing-based list) -->
+                    <tr>
+                        <td style="background-color: #FAF9FC; padding: 48px 56px;">
+                            <div style="font-size: 14px; font-weight: 600; color: #111111; margin-bottom: 24px;">Top
+                                Expenditures</div>
+
+                            <!-- List Item 1 -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="margin-bottom: 20px;">
+                                <tr>
+                                    <td width="40">
+                                        <div
+                                            style="width: 32px; height: 32px; background-color: #ECECF2; border-radius: 8px; text-align: center; line-height: 32px; font-size: 16px;">
+                                            🍔</div>
+                                    </td>
+                                    <td style="font-size: 14.5px; font-weight: 500; color: #111111;">Food & Dining</td>
+                                    <td align="right" style="font-size: 14.5px; font-weight: 600; color: #111111;">
+                                        ₹{{foodExpense}}</td>
+                                </tr>
+                            </table>
+
+                            <!-- List Item 2 -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                                style="margin-bottom: 20px;">
+                                <tr>
+                                    <td width="40">
+                                        <div
+                                            style="width: 32px; height: 32px; background-color: #ECECF2; border-radius: 8px; text-align: center; line-height: 32px; font-size: 16px;">
+                                            🛍️</div>
+                                    </td>
+                                    <td style="font-size: 14.5px; font-weight: 500; color: #111111;">Shopping</td>
+                                    <td align="right" style="font-size: 14.5px; font-weight: 600; color: #111111;">
+                                        ₹{{shoppingExpense}}</td>
+                                </tr>
+                            </table>
+
+                            <!-- List Item 3 -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="40">
+                                        <div
+                                            style="width: 32px; height: 32px; background-color: #ECECF2; border-radius: 8px; text-align: center; line-height: 32px; font-size: 16px;">
+                                            🚗</div>
+                                    </td>
+                                    <td style="font-size: 14.5px; font-weight: 500; color: #111111;">Transport</td>
+                                    <td align="right" style="font-size: 14.5px; font-weight: 600; color: #111111;">
+                                        ₹{{transportExpense}}</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- CTA Block -->
+                    <tr>
+                        <td style="padding: 48px 56px 56px 56px;" align="center">
+                            <a href="https://spendlyst.tech/#/dashboard"
+                                style="display:inline-block; background-color:#5B3DE0; color:#ffffff; text-decoration:none; padding:16px 32px; border-radius:12px; font-weight:600; font-size:14px; letter-spacing: -0.01em;">
+                                View Full Analysis &rarr;
+                            </a>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
+</body>
+
+</html>

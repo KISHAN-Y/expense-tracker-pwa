@@ -1258,7 +1258,10 @@ const UI = {
         // Profile avatar
         document.getElementById('profileBtn')?.addEventListener('click', () => this.goToPage('profile'));
 
-        // Notifications
+        // Notifications & Refresh
+        document.getElementById('refreshDashboardBtn')?.addEventListener('click', () => {
+            window.location.reload(true);
+        });
         document.getElementById('notifBtn')?.addEventListener('click', () => this.openNotificationSheet());
         document.getElementById('notifSheetOverlay')?.addEventListener('click', () => this.closeNotificationSheet());
         document.getElementById('markAllReadBtn')?.addEventListener('click', async () => {
