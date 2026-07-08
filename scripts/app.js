@@ -153,10 +153,15 @@ const APP = {
         }
     },
 
-    // Load data
+    // Load data with stale-while-revalidate pattern
     async loadData() {
         try {
-            // Load from server if online
+            // 1. Immediately render the dashboard with local (stale) data for instant loading
+            await UI.updateDashboardStats();
+            await UI.renderRecentTransactions();
+            await this.updateSyncIndicators();
+
+            // 2. Fetch fresh data in the background if online
             if (Utils.isOnline()) {
                 const transactions = await API.getTransactions();
                 if (transactions !== null) {
@@ -168,13 +173,13 @@ const APP = {
                         await DB.addTransaction(t);
                     }
                     console.log('Synced transactions from server');
+                    
+                    // 3. Re-render UI with the fresh data
+                    await UI.updateDashboardStats();
+                    await UI.renderRecentTransactions();
+                    await this.updateSyncIndicators();
                 }
             }
-
-            // Update UI
-            await UI.updateDashboardStats();
-            await UI.renderRecentTransactions();
-            await this.updateSyncIndicators();
         } catch (error) {
             console.error('Error loading data:', error);
         }

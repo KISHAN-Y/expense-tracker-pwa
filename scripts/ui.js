@@ -766,8 +766,10 @@ const UI = {
 
         // Animated counter
         this.animateCounter('currentBalance', balance);
-        document.getElementById('totalIncome').textContent = Utils.formatCurrency(totalIncome);
-        document.getElementById('totalExpense').textContent = Utils.formatCurrency(totalExpense);
+        const incEl = document.getElementById('totalIncome');
+        const expEl = document.getElementById('totalExpense');
+        if (incEl) incEl.textContent = Utils.formatCurrency(totalIncome);
+        if (expEl) expEl.textContent = Utils.formatCurrency(totalExpense);
 
         // Greeting
         const rawName = await DB.getSetting('displayName') || 'User';
@@ -1771,7 +1773,17 @@ const UI = {
                 return;
             }
 
+            if (!Utils.validateEmail(email)) {
+                Utils.showToast('Please enter a valid email address');
+                return;
+            }
+
+            const btn = document.getElementById('loginSubmitBtn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Logging in...';
+            btn.disabled = true;
             Utils.showLoading(true);
+
             try {
                 const res = await API.login(email, password);
                 if (res.success) {
@@ -1806,6 +1818,8 @@ const UI = {
                 Utils.showToast('Login failed. Check your internet connection.');
             } finally {
                 Utils.showLoading(false);
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         });
 
@@ -1820,6 +1834,11 @@ const UI = {
                 return;
             }
 
+            if (!Utils.validateEmail(email)) {
+                Utils.showToast('Please enter a valid email address');
+                return;
+            }
+
             if (password !== confirmPassword) {
                 Utils.showToast('Passwords do not match');
                 return;
@@ -1830,7 +1849,12 @@ const UI = {
                 return;
             }
 
+            const btn = document.getElementById('registerSubmitBtn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Registering...';
+            btn.disabled = true;
             Utils.showLoading(true);
+
             try {
                 const res = await API.register(email, password, displayName);
                 if (res.success) {
@@ -1848,6 +1872,7 @@ const UI = {
                     document.getElementById('registerPassword').value = '';
                     document.getElementById('registerConfirmPassword').value = '';
                 } else {
+                    // Backend already checks if user exists and returns the error message
                     Utils.showToast(res.error || 'Registration failed');
                 }
             } catch (err) {
@@ -1855,6 +1880,8 @@ const UI = {
                 Utils.showToast('Registration failed. Check connection.');
             } finally {
                 Utils.showLoading(false);
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         });
 

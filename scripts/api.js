@@ -1,7 +1,7 @@
 // API Handler
 const API = {
     // Fetch with timeout
-    async fetchWithTimeout(url, options = {}, timeout = 10000) {
+    async fetchWithTimeout(url, options = {}, timeout = 30000) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
 
