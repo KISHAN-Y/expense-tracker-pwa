@@ -50,7 +50,7 @@ const UI = {
         // Move nav indicator
         this.updateNavIndicator(pageName);
 
-        // Hide bottom nav + FAB on full-screen tx pages
+        // Hide bottom nav + FAB on full-screen tx 
         const fullScreenPages = ['addIncome', 'addExpense', 'transactionDetail', 'splash'];
         const isFullScreen = fullScreenPages.includes(pageName);
         const bottomNav = document.querySelector('.bottom-nav');
@@ -152,14 +152,14 @@ const UI = {
         this.editingBudgetId = id;
         const sheetTitle = document.querySelector('#createBudgetSheet .sheet-title');
         if (sheetTitle) sheetTitle.textContent = 'Edit Budget';
-        
+
         document.getElementById('budgetCategoryInput').value = category;
         const emoji = this.getCategoryEmoji(category, 'expense');
         document.getElementById('budgetCategoryText').innerHTML = `<span>${emoji}</span> <span>${category}</span>`;
         document.getElementById('budgetCategoryTrigger')?.classList.add('has-value');
-        
+
         document.getElementById('budgetAmountInput').value = limit;
-        
+
         document.getElementById('budgetSheetOverlay')?.classList.add('visible');
         document.getElementById('createBudgetSheet')?.classList.add('open');
         const bottomNav = document.querySelector('.bottom-nav');
@@ -271,7 +271,7 @@ const UI = {
         const sData = this.storyData;
 
         if (exceedText) {
-            exceedText.textContent = sData.budgetStatus.overLimitCount > 0 
+            exceedText.textContent = sData.budgetStatus.overLimitCount > 0
                 ? `${sData.budgetStatus.overLimitCount} of ${sData.budgetStatus.totalBudgetsCount} Budget is exceeds the limit`
                 : "You're within budget on all categories 🎉";
         }
@@ -1372,9 +1372,9 @@ const UI = {
         document.getElementById('exportPdfBtn')?.addEventListener('click', async () => {
             const range = document.getElementById('exportRangeSelect')?.value || 'month';
             const inputName = document.getElementById('exportAccountHolderInput')?.value?.trim();
-            
+
             let displayName = inputName || 'Yadav Kishan Pareshkumar';
-            
+
             // Persist the name if changed by the user
             if (inputName) {
                 await DB.setSetting('displayName', inputName);
@@ -1589,6 +1589,22 @@ const UI = {
         // Setup Auth Event Listeners
         this.setupAuthEventListeners();
 
+        // Intercept PDF documentation links
+        document.querySelectorAll('.auth-doc-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const iframe = document.getElementById('pdfIframe');
+                if (iframe) iframe.src = 'assets/Spendlyst_User_Guide.pdf#toolbar=0';
+                document.getElementById('pdfOverlay')?.classList.add('visible');
+            });
+        });
+
+        document.getElementById('pdfCloseBtn')?.addEventListener('click', () => {
+            document.getElementById('pdfOverlay')?.classList.remove('visible');
+            const iframe = document.getElementById('pdfIframe');
+            if (iframe) iframe.src = 'about:blank';
+        });
+
         // Listen for hash changes
         window.addEventListener('hashchange', () => this.handleRouting());
     },
@@ -1714,8 +1730,8 @@ const UI = {
     },
 
     // Compatibility stubs
-    populateCategorySelects() {},
-    initializeTransactionForm() {},
+    populateCategorySelects() { },
+    initializeTransactionForm() { },
     updateOfflineStatus() { if (!Utils.isOnline()) Utils.showToast('You are offline'); },
     updateSyncStatus(synced, pendingCount) { if (pendingCount > 0 && Utils.isOnline()) Utils.showToast(`${pendingCount} item(s) pending sync`); },
     async handleSyncClick() {
@@ -1726,7 +1742,7 @@ const UI = {
     // ─── Authentication UI ───────────────────────────────────────────────────
     showAuthScreen() {
         document.getElementById('authOverlay')?.classList.add('visible');
-        
+
         // Hide nav and FAB
         const bottomNav = document.querySelector('.bottom-nav');
         const fabRoot = document.getElementById('fabRoot');
@@ -1736,7 +1752,7 @@ const UI = {
 
     hideAuthScreen() {
         document.getElementById('authOverlay')?.classList.remove('visible');
-        
+
         // Restore nav and FAB
         const bottomNav = document.querySelector('.bottom-nav');
         const fabRoot = document.getElementById('fabRoot');
@@ -1747,10 +1763,10 @@ const UI = {
     handleRouting() {
         const currentUser = localStorage.getItem('currentUser');
         let hash = window.location.hash;
-        
+
         // Parse page name from hash (e.g. #/dashboard -> dashboard)
         let pageName = hash.replace(/^#\/?/, '') || 'splash';
-        
+
         // If they are not logged in, they can only view 'splash' or 'login'
         if (!currentUser) {
             if (pageName !== 'splash' && pageName !== 'login') {
@@ -1767,7 +1783,7 @@ const UI = {
         if (pageName === 'splash') {
             this.hideAuthScreen();
             this._navigateToPage('splash');
-            
+
             // Auto redirect from splash after 1500ms
             if (this._splashTimeout) clearTimeout(this._splashTimeout);
             this._splashTimeout = setTimeout(() => {
@@ -1776,14 +1792,14 @@ const UI = {
             }, 1500);
         } else if (pageName === 'login') {
             this.showAuthScreen();
-            
+
             // Keep a clean fallback visible page behind overlay (e.g., dashboard DOM but hidden/dimmed)
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             const dashboardPage = document.getElementById('dashboard');
             if (dashboardPage) dashboardPage.classList.add('active');
         } else {
             this.hideAuthScreen();
-            
+
             // Route to target page if page element exists
             const target = document.getElementById(pageName);
             if (target && target.classList.contains('page')) {
@@ -1831,25 +1847,25 @@ const UI = {
                 const res = await API.login(email, password);
                 if (res.success) {
                     localStorage.setItem('currentUser', JSON.stringify(res.user));
-                    
+
                     // Store display name from user object
                     const name = res.user.displayName || email.split('@')[0];
                     await DB.setSetting('displayName', name);
-                    
+
                     this.hideAuthScreen();
-                    
+
                     // Trigger load data & update
                     await APP.loadData();
-                    
+
                     const onboardingDone = await DB.getSetting('onboardingComplete');
                     if (!onboardingDone) {
                         this.showOnboarding();
                     } else {
                         this.goToPage('dashboard');
                     }
-                    
+
                     Utils.showToast('Logged in successfully');
-                    
+
                     // Reset fields
                     document.getElementById('loginEmail').value = '';
                     document.getElementById('loginPassword').value = '';
@@ -1902,26 +1918,26 @@ const UI = {
                 const res = await API.register(email, password, displayName);
                 if (res.success) {
                     Utils.showToast('Registration successful!');
-                    
+
                     // Immediately log user in automatically
                     localStorage.setItem('currentUser', JSON.stringify(res.user));
-                    
+
                     // Store display name from user object
                     const name = res.user.displayName || email.split('@')[0];
                     await DB.setSetting('displayName', name);
-                    
+
                     this.hideAuthScreen();
-                    
+
                     // Trigger load data & update
                     await APP.loadData();
-                    
+
                     const onboardingDone = await DB.getSetting('onboardingComplete');
                     if (!onboardingDone) {
                         this.showOnboarding();
                     } else {
                         this.goToPage('dashboard');
                     }
-                    
+
                     // Reset fields
                     document.getElementById('registerName').value = '';
                     document.getElementById('registerEmail').value = '';

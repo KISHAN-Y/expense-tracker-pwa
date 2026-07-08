@@ -49,6 +49,16 @@
                 <button id="loginSubmitBtn" class="auth-submit-btn">Login</button>
                 <p class="auth-switch-text">Don't have an account? <span id="switchToRegister"
                         class="auth-switch-link">Register</span></p>
+                <a href="assets/Spendlyst_User_Guide.pdf" target="_blank" class="auth-doc-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>View App Documentation (PDF)
+                </a>
             </div>
 
             <!-- Register Form -->
@@ -67,6 +77,16 @@
                 <button id="registerSubmitBtn" class="auth-submit-btn">Register</button>
                 <p class="auth-switch-text">Already have an account? <span id="switchToLogin"
                         class="auth-switch-link">Login</span></p>
+                <a href="assets/documentation.pdf" target="_blank" class="auth-doc-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        style="vertical-align: middle; margin-right: 4px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>View App Documentation (PDF)
+                </a>
             </div>
         </div>
     </div>
@@ -1084,8 +1104,8 @@
         <div class="success-modal">
             <div class="success-check-icon" style="background: none; box-shadow: none;">
                 <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                    <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
-                    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                    <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none" />
+                    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
                 </svg>
             </div>
             <p class="success-text" id="successOverlayText">Transaction has been successfully added</p>
@@ -1162,18 +1182,33 @@
         <div class="spinner"></div>
     </div>
 
+    <!-- PDF Viewer Modal -->
+    <div class="pdf-overlay" id="pdfOverlay">
+        <div class="pdf-container">
+            <div class="pdf-header">
+                <span class="pdf-title">App Documentation</span>
+                <button class="pdf-close-btn" id="pdfCloseBtn" title="Close Documentation">&times;</button>
+            </div>
+            <div class="pdf-body">
+                <iframe src="about:blank" id="pdfIframe" scrolling="yes" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+        </div>
+    </div>
+
     <!-- Custom Confirmation Modal (for Logout, etc.) -->
     <div class="confirm-overlay" id="logoutConfirmOverlay">
         <div class="confirm-modal">
             <div class="confirm-icon">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FF4B4B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FF4B4B" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <polyline points="16 17 21 12 16 7"></polyline>
                     <line x1="21" y1="12" x2="9" y2="12"></line>
                 </svg>
             </div>
             <h3 class="confirm-title">Are you sure?</h3>
-            <p class="confirm-text">You will be logged out of Spendlyst. Your offline transactions are safe on this device.</p>
+            <p class="confirm-text">You will be logged out of Spendlyst. Your offline transactions are safe on this
+                device.</p>
             <div class="confirm-actions">
                 <button class="confirm-btn cancel-btn" id="logoutCancelBtn">Cancel</button>
                 <button class="confirm-btn action-btn" id="logoutConfirmBtn">Log Out</button>
