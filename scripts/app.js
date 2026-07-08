@@ -163,6 +163,13 @@ const APP = {
 
             // 2. Fetch fresh data in the background if online
             if (Utils.isOnline()) {
+                // If there is no local data, show skeletons while API is loading to prevent empty state flash
+                const localTx = await DB.getAllTransactions();
+                if (localTx.length === 0) {
+                    UI.showSkeletons('recentTransactions', 3);
+                    UI.showSkeletons('historyTransactions', 5);
+                }
+
                 const transactions = await API.getTransactions();
                 if (transactions !== null) {
                     // Clear local DB and sync with server

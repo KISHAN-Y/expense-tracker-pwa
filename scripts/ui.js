@@ -1103,6 +1103,29 @@ const UI = {
         if (nextBtn) nextBtn.innerHTML = this.onboardingSlide === 2 ? 'Get Started <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>' : 'Next <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>';
     },
 
+    showSkeletons(containerId, count = 3) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        let html = '';
+        for (let i = 0; i < count; i++) {
+            html += `
+            <div class="transaction-item skeleton-item" style="border-bottom: 1px solid var(--border); padding: 14px 0;">
+                <div class="transaction-info">
+                    <div class="transaction-icon skeleton skeleton-avatar"></div>
+                    <div class="transaction-details">
+                        <div class="skeleton skeleton-title"></div>
+                        <div class="skeleton skeleton-text" style="margin-top: 6px;"></div>
+                    </div>
+                </div>
+                <div class="transaction-right" style="text-align: right;">
+                    <div class="skeleton skeleton-val"></div>
+                    <div class="skeleton skeleton-time" style="margin-top: 6px;"></div>
+                </div>
+            </div>`;
+        }
+        container.innerHTML = html;
+    },
+
     // ─── Setup all event listeners ────────────────────────────────────────────
     setupEventListeners() {
         // Bottom nav
@@ -1113,6 +1136,26 @@ const UI = {
                 this.goToPage(pageName);
                 if (pageName === 'history') this.renderHistoryTransactions();
             });
+        });
+
+        // Logout cancel / confirm buttons
+        document.getElementById('logoutCancelBtn')?.addEventListener('click', () => {
+            document.getElementById('logoutConfirmOverlay')?.classList.remove('visible');
+        });
+        document.getElementById('logoutConfirmBtn')?.addEventListener('click', async () => {
+            document.getElementById('logoutConfirmOverlay')?.classList.remove('visible');
+            Utils.showLoading(true);
+            try {
+                await DB.clearAll();
+                localStorage.removeItem('currentUser');
+                Utils.showToast('Logged out successfully');
+                this.goToPage('login');
+            } catch (e) {
+                console.error(e);
+                Utils.showToast('Failed to log out securely');
+            } finally {
+                Utils.showLoading(false);
+            }
         });
 
         // FAB toggle
@@ -1858,13 +1901,26 @@ const UI = {
             try {
                 const res = await API.register(email, password, displayName);
                 if (res.success) {
-                    Utils.showToast('Registration successful! Please login.');
-                    // Switch to login form
-                    document.getElementById('registerForm')?.classList.remove('active');
-                    document.getElementById('loginForm')?.classList.add('active');
-                    // Autofill login email
-                    const loginEmailEl = document.getElementById('loginEmail');
-                    if (loginEmailEl) loginEmailEl.value = email;
+                    Utils.showToast('Registration successful!');
+                    
+                    // Immediately log user in automatically
+                    localStorage.setItem('currentUser', JSON.stringify(res.user));
+                    
+                    // Store display name from user object
+                    const name = res.user.displayName || email.split('@')[0];
+                    await DB.setSetting('displayName', name);
+                    
+                    this.hideAuthScreen();
+                    
+                    // Trigger load data & update
+                    await APP.loadData();
+                    
+                    const onboardingDone = await DB.getSetting('onboardingComplete');
+                    if (!onboardingDone) {
+                        this.showOnboarding();
+                    } else {
+                        this.goToPage('dashboard');
+                    }
                     
                     // Reset fields
                     document.getElementById('registerName').value = '';
@@ -1872,7 +1928,6 @@ const UI = {
                     document.getElementById('registerPassword').value = '';
                     document.getElementById('registerConfirmPassword').value = '';
                 } else {
-                    // Backend already checks if user exists and returns the error message
                     Utils.showToast(res.error || 'Registration failed');
                 }
             } catch (err) {
@@ -1887,9 +1942,7 @@ const UI = {
 
         // Logout
         document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-            localStorage.removeItem('currentUser');
-            Utils.showToast('Logged out');
-            this.goToPage('login');
+            document.getElementById('logoutConfirmOverlay')?.classList.add('visible');
         });
     }
 };

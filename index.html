@@ -1083,10 +1083,12 @@
     <div class="success-overlay" id="successOverlay">
         <div class="success-modal">
             <div class="success-check-icon" style="background: none; box-shadow: none;">
-                <lottie-player src="https://assets3.lottiefiles.com/packages/lf20_niyfyoqs.json"
-                    background="transparent" speed="1" style="width: 120px; height: 120px;" autoplay></lottie-player>
+                <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                    <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                </svg>
             </div>
-            <p class="success-text">Transaction has been successfully added</p>
+            <p class="success-text" id="successOverlayText">Transaction has been successfully added</p>
         </div>
     </div>
 
@@ -1158,6 +1160,25 @@
     <!-- Loading -->
     <div id="loadingIndicator" class="loading-indicator">
         <div class="spinner"></div>
+    </div>
+
+    <!-- Custom Confirmation Modal (for Logout, etc.) -->
+    <div class="confirm-overlay" id="logoutConfirmOverlay">
+        <div class="confirm-modal">
+            <div class="confirm-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FF4B4B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </div>
+            <h3 class="confirm-title">Are you sure?</h3>
+            <p class="confirm-text">You will be logged out of Spendlyst. Your offline transactions are safe on this device.</p>
+            <div class="confirm-actions">
+                <button class="confirm-btn cancel-btn" id="logoutCancelBtn">Cancel</button>
+                <button class="confirm-btn action-btn" id="logoutConfirmBtn">Log Out</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js" defer></script>
