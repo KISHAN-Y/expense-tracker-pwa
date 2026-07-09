@@ -1,4 +1,4 @@
-const CACHE_NAME = 'expense-tracker-v22';
+const CACHE_NAME = 'expense-tracker-v34';
 const urlsToCache = [
     './',
     './index.html',
@@ -9,6 +9,7 @@ const urlsToCache = [
     './scripts/api.js',
     './scripts/ui.js',
     './scripts/app.js',
+    './reconcile.js',
     './manifest.json'
 ];
 

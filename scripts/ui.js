@@ -259,8 +259,8 @@ const UI = {
         const now = new Date();
         const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const budgets = await DB.getBudgetsByMonth(monthYear);
-        const allBudgets = budgets.length > 0 ? budgets : await DB.getAllBudgets();
-        const transactions = await DB.getAllTransactions();
+        const allBudgets = budgets.length > 0 ? budgets : await DB.getBudgetsForUser(DB.getCurrentUserIdSync());
+        const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
 
         // Precompute everything
         this.storyData = this.generateStoryData(transactions, allBudgets, monthYear);
@@ -552,7 +552,7 @@ const UI = {
         const container = document.getElementById('notifSheetList');
         if (!container) return;
 
-        const notifications = await DB.getAllNotifications();
+        const notifications = await DB.getNotificationsForUser(DB.getCurrentUserIdSync());
         const sorted = notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 20);
 
         if (sorted.length === 0) {
@@ -575,7 +575,7 @@ const UI = {
     },
 
     async updateNotifBadge() {
-        const count = await DB.getUnreadNotificationCount();
+        const count = await DB.getUnreadNotificationCount(DB.getCurrentUserIdSync());
         const dot = document.getElementById('notifDot');
         if (dot) dot.classList.toggle('visible', count > 0);
     },
@@ -651,7 +651,7 @@ const UI = {
     // ─── Render Recent Transactions on Dashboard ──────────────────────────────
     async renderRecentTransactions() {
         const container = document.getElementById('recentTransactions');
-        const transactions = await DB.getAllTransactions();
+        const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
         const recent = transactions.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
         if (recent.length === 0) {
@@ -685,7 +685,7 @@ const UI = {
     // ─── Render History ───────────────────────────────────────────────────────
     async renderHistoryTransactions() {
         const container = document.getElementById('historyTransactions');
-        const allTransactions = await DB.getAllTransactions();
+        const allTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
 
         const ledgerGroups = {};
         allTransactions.forEach(t => {
@@ -759,7 +759,7 @@ const UI = {
 
     // ─── Dashboard Stats ─────────────────────────────────────────────────────
     async updateDashboardStats() {
-        const transactions = await DB.getAllTransactions();
+        const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
         const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount), 0);
         const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount), 0);
         const balance = totalIncome - totalExpense;
@@ -820,7 +820,7 @@ const UI = {
         const yearTitleEl = document.getElementById('heatmapYearTitle');
         if (!container) return;
 
-        const transactions = await DB.getAllTransactions();
+        const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
         if (yearTitleEl) yearTitleEl.textContent = 'Last 7 Days';
 
         const getLvl = (val, max) => {
@@ -921,7 +921,7 @@ const UI = {
         if (sinceEl) sinceEl.textContent = `Member since ${memberSince}`;
 
         // Stats
-        const transactions = await DB.getAllTransactions();
+        const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
         const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount), 0);
         const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount), 0);
         const netSaved = totalIncome - totalExpense;
@@ -943,8 +943,8 @@ const UI = {
         const now = new Date();
         const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const budgets = await DB.getBudgetsByMonth(monthYear);
-        const allBudgets = budgets.length > 0 ? budgets : await DB.getAllBudgets();
-        const transactions = await DB.getAllTransactions();
+        const allBudgets = budgets.length > 0 ? budgets : await DB.getBudgetsForUser(DB.getCurrentUserIdSync());
+        const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
 
         // Filter transactions to this month
         const monthTransactions = transactions.filter(t => t.date && t.date.startsWith(monthYear) && t.type === 'expense');
@@ -1310,7 +1310,7 @@ const UI = {
         document.getElementById('notifBtn')?.addEventListener('click', () => this.openNotificationSheet());
         document.getElementById('notifSheetOverlay')?.addEventListener('click', () => this.closeNotificationSheet());
         document.getElementById('markAllReadBtn')?.addEventListener('click', async () => {
-            await DB.markAllNotificationsRead();
+            await DB.markAllNotificationsRead(DB.getCurrentUserIdSync());
             await this.renderNotifications();
             await this.updateNotifBadge();
             Utils.showToast('All notifications marked as read');
@@ -1385,7 +1385,7 @@ const UI = {
             }
 
             const lastReconciledDate = await DB.getSetting('lastReconciledDate');
-            const transactions = await DB.getAllTransactions();
+            const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
 
             let filteredTx = [];
             let rangeLabel = 'All Time';
@@ -1612,7 +1612,7 @@ const UI = {
     // ─── Transaction Detail ──────────────────────────────────────────────────
     async showTransactionDetails(id) {
         this.currentDetailId = id;
-        const transactions = await DB.getAllTransactions();
+        const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
         const t = transactions.find(x => x.id === id);
         if (!t) return;
 
@@ -1960,6 +1960,286 @@ const UI = {
         document.getElementById('logoutBtn')?.addEventListener('click', async () => {
             document.getElementById('logoutConfirmOverlay')?.classList.add('visible');
         });
+    },
+
+    // ─── Bank Reconciliation Methods ──────────────────────────────────────────
+    async openReconcileSheet() {
+        this.openCustomSheet('reconcileSheet');
+        document.getElementById('reconcileResults').innerHTML = '';
+        document.getElementById('reconcileUploadState').style.display = 'block';
+        document.getElementById('reconcileLoadingState').style.display = 'none';
+    },
+
+    async handleStatementUpload(fileInput) {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        document.getElementById('reconcileUploadState').style.display = 'none';
+        document.getElementById('reconcileLoadingState').style.display = 'block';
+
+        try {
+            const appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            const result = await Reconcile.reconcile(file, appTransactions);
+            this._lastResult = result; // keep for "Add All Missing" action
+            this.renderReconcileResults(result);
+        } catch (err) {
+            Utils.showToast(err.message || 'Failed to read statement');
+            document.getElementById('reconcileUploadState').style.display = 'block';
+        } finally {
+            document.getElementById('reconcileLoadingState').style.display = 'none';
+            fileInput.value = ''; // allow re-uploading the same file if needed
+        }
+    },
+
+    renderReconcileResults(result) {
+        const { missingInApp, extraInApp, dateMismatches, matchedCount, bankTransactionCount, detectedBank } = result;
+        const container = document.getElementById('reconcileResults');
+
+        let html = `
+            <div class="reconcile-bank-detected">Detected: <b>${Utils.escapeHTML(detectedBank)}</b> · ${bankTransactionCount} transactions found in statement</div>
+            <div class="reconcile-summary">
+                <div class="reconcile-stat">
+                    <span class="reconcile-stat-num" style="color:#17A672;">${matchedCount}</span>
+                    <span class="reconcile-stat-label">Matched</span>
+                </div>
+                <div class="reconcile-stat">
+                    <span class="reconcile-stat-num" style="color:#E5484D;">${missingInApp.length}</span>
+                    <span class="reconcile-stat-label">Missing</span>
+                </div>
+                <div class="reconcile-stat">
+                    <span class="reconcile-stat-num" style="color:#F5A623;">${extraInApp.length}</span>
+                    <span class="reconcile-stat-label">Unmatched in App</span>
+                </div>
+            </div>
+        `;
+
+        if (missingInApp.length > 0) {
+            html += `<div class="reconcile-section-title">Missing from your app (${missingInApp.length})</div>`;
+            missingInApp.forEach((m, i) => {
+                const sign = m.type === 'income' ? '+' : '-';
+                const color = m.type === 'income' ? '#17A672' : '#E5484D';
+                html += `
+                    <div class="reconcile-item">
+                        <div class="reconcile-item-info">
+                            <div class="reconcile-item-date">${Utils.formatDate(m.date)}</div>
+                            <div class="reconcile-item-desc">${Utils.escapeHTML(m.description)}</div>
+                        </div>
+                        <div class="reconcile-item-amt" style="color:${color};">${sign}${Utils.formatCurrency(m.amount)}</div>
+                        <button class="reconcile-add-btn" onclick="UI.addMissingEntry(${i})">Add</button>
+                    </div>`;
+            });
+            html += `<button class="reconcile-add-all-btn" onclick="UI.addAllMissing()">Add All ${missingInApp.length} Missing Entries</button>`;
+        }
+
+        if (dateMismatches.length > 0) {
+            html += `<div class="reconcile-section-title">Date mismatches (${dateMismatches.length})</div>`;
+            dateMismatches.forEach(dm => {
+                html += `
+                    <div class="reconcile-item">
+                        <div class="reconcile-item-info">
+                            <div class="reconcile-item-desc">${Utils.escapeHTML(dm.app.description || dm.app.category)}</div>
+                            <div class="reconcile-item-date" style="color:#F5A623;">App: ${dm.appDate} → Bank: ${dm.bankDate}</div>
+                        </div>
+                        <button class="reconcile-add-btn" onclick="UI.fixDate('${dm.app.id}', '${dm.bankDate}')">Fix Date</button>
+                    </div>`;
+            });
+        }
+
+        if (extraInApp.length > 0) {
+            html += `<div class="reconcile-section-title">In your app but not in the bank statement (${extraInApp.length})</div>`;
+            html += `<div class="reconcile-hint">These may be duplicates, or transactions the bank hasn't cleared yet. Review before deleting.</div>`;
+            extraInApp.forEach(a => {
+                const sign = a.type === 'income' ? '+' : '-';
+                const color = a.type === 'income' ? '#17A672' : '#E5484D';
+                html += `
+                    <div class="reconcile-item">
+                        <div class="reconcile-item-info">
+                            <div class="reconcile-item-date">${Utils.formatDate(a.date)}</div>
+                            <div class="reconcile-item-desc">${Utils.escapeHTML(a.description || a.category)}</div>
+                        </div>
+                        <div class="reconcile-item-amt" style="color:${color};">${sign}${Utils.formatCurrency(a.amount)}</div>
+                        <button class="reconcile-delete-btn" onclick="UI.deleteExtra('${a.id}')">Delete</button>
+                    </div>`;
+            });
+        }
+
+        if (missingInApp.length === 0 && extraInApp.length === 0 && dateMismatches.length === 0) {
+            html += `<div class="reconcile-all-clear">✅ Everything matches — your app is fully reconciled with this statement.</div>`;
+        }
+
+        container.innerHTML = html;
+    },
+
+    async addMissingEntry(index) {
+        Utils.showLoading(true);
+        try {
+            const entry = this._lastResult.missingInApp[index];
+            const transaction = await DB.addTransaction({
+                date: entry.date,
+                type: entry.type,
+                category: 'Other',
+                amount: entry.amount,
+                description: entry.description,
+            });
+            Utils.showToast('Transaction added');
+
+            // Sync with Google Sheets
+            if (Utils.isOnline()) {
+                try {
+                    await API.createTransaction(transaction);
+                } catch (e) {
+                    console.error("Sync error:", e);
+                    await DB.addToSyncQueue('CREATE', transaction);
+                }
+            } else {
+                await DB.addToSyncQueue('CREATE', transaction);
+            }
+            
+            // Re-run matching pipeline to update all counters (Matched, Missing, Unmatched)
+            const appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            const result = Reconcile.matchTransactions(this._lastResult.bankTx, appTransactions);
+            this._lastResult = { 
+                ...result, 
+                bankTx: this._lastResult.bankTx, 
+                detectedBank: this._lastResult.detectedBank,
+                bankTransactionCount: this._lastResult.bankTransactionCount 
+            };
+            
+            this.renderReconcileResults(this._lastResult);
+            await UI.updateDashboardStats();
+        } catch (error) {
+            console.error('Error adding transaction:', error);
+            Utils.showToast('Failed to add transaction');
+        } finally {
+            Utils.showLoading(false);
+        }
+    },
+
+    async addAllMissing() {
+        Utils.showLoading(true);
+        try {
+            const entries = [...this._lastResult.missingInApp];
+            for (const entry of entries) {
+                const transaction = await DB.addTransaction({
+                    date: entry.date,
+                    type: entry.type,
+                    category: 'Other',
+                    amount: entry.amount,
+                    description: entry.description,
+                });
+
+                // Sync with Google Sheets
+                if (Utils.isOnline()) {
+                    try {
+                        await API.createTransaction(transaction);
+                    } catch (e) {
+                        console.error("Sync error:", e);
+                        await DB.addToSyncQueue('CREATE', transaction);
+                    }
+                } else {
+                    await DB.addToSyncQueue('CREATE', transaction);
+                }
+            }
+            Utils.showToast(`Added ${entries.length} transactions`);
+            
+            // Re-run matching pipeline to update all counters (Matched, Missing, Unmatched)
+            const appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            const result = Reconcile.matchTransactions(this._lastResult.bankTx, appTransactions);
+            this._lastResult = { 
+                ...result, 
+                bankTx: this._lastResult.bankTx, 
+                detectedBank: this._lastResult.detectedBank,
+                bankTransactionCount: this._lastResult.bankTransactionCount 
+            };
+            
+            this.renderReconcileResults(this._lastResult);
+            await UI.updateDashboardStats();
+        } catch (error) {
+            console.error('Error adding transactions:', error);
+            Utils.showToast('Failed to add transactions');
+        } finally {
+            Utils.showLoading(false);
+        }
+    },
+
+    async fixDate(transactionId, correctDate) {
+        Utils.showLoading(true);
+        try {
+            const all = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            const tx = all.find(t => t.id === transactionId);
+            if (!tx) return;
+            tx.date = correctDate;
+            await DB.updateTransaction(tx);
+            Utils.showToast('Date corrected');
+
+            // Sync with Google Sheets
+            if (Utils.isOnline()) {
+                try {
+                    await API.updateTransaction(tx);
+                } catch (e) {
+                    console.error("Sync error:", e);
+                    await DB.addToSyncQueue('UPDATE', tx);
+                }
+            } else {
+                await DB.addToSyncQueue('UPDATE', tx);
+            }
+            
+            // Re-run matching pipeline to update all counters (Matched, Missing, Unmatched)
+            const appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            const result = Reconcile.matchTransactions(this._lastResult.bankTx, appTransactions);
+            this._lastResult = { 
+                ...result, 
+                bankTx: this._lastResult.bankTx, 
+                detectedBank: this._lastResult.detectedBank,
+                bankTransactionCount: this._lastResult.bankTransactionCount 
+            };
+            
+            this.renderReconcileResults(this._lastResult);
+            await UI.updateDashboardStats();
+        } catch (error) {
+            console.error('Error correcting date:', error);
+            Utils.showToast('Failed to correct date');
+        } finally {
+            Utils.showLoading(false);
+        }
+    },
+
+    async deleteExtra(transactionId) {
+        Utils.showLoading(true);
+        try {
+            await DB.deleteTransaction(transactionId);
+            Utils.showToast('Transaction deleted');
+
+            // Sync with Google Sheets
+            if (Utils.isOnline()) {
+                try {
+                    await API.deleteTransaction(transactionId);
+                } catch (e) {
+                    console.error("Sync error:", e);
+                    await DB.addToSyncQueue('DELETE', { id: transactionId });
+                }
+            } else {
+                await DB.addToSyncQueue('DELETE', { id: transactionId });
+            }
+            
+            // Re-run matching pipeline to update all counters (Matched, Missing, Unmatched)
+            const appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            const result = Reconcile.matchTransactions(this._lastResult.bankTx, appTransactions);
+            this._lastResult = { 
+                ...result, 
+                bankTx: this._lastResult.bankTx, 
+                detectedBank: this._lastResult.detectedBank,
+                bankTransactionCount: this._lastResult.bankTransactionCount 
+            };
+            
+            this.renderReconcileResults(this._lastResult);
+            await UI.updateDashboardStats();
+        } catch (error) {
+            console.error('Error deleting transaction:', error);
+            Utils.showToast('Failed to delete transaction');
+        } finally {
+            Utils.showLoading(false);
+        }
     }
 };
 

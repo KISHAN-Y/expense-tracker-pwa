@@ -2704,3 +2704,197 @@ button {
 .pdf-body iframe::-webkit-scrollbar {
     display: none;
 }
+
+/* ============================================
+   BANK RECONCILIATION
+   ============================================ */
+#reconcileSheet .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 16px 20px 80px; /* plenty of bottom padding for scroll space */
+}
+
+#reconcileSheet .sheet-body::-webkit-scrollbar {
+    display: none;
+}
+
+.reconcile-bank-detected {
+    font-size: 13px;
+    color: var(--text);
+    background: var(--primary-glow);
+    border-radius: 16px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    border: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1.4;
+}
+
+.reconcile-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.reconcile-stat {
+    background: var(--bg-white, #fff);
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    padding: 18px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+}
+
+.reconcile-stat-num {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 4px;
+    font-family: var(--font);
+}
+
+.reconcile-stat-label {
+    font-size: 10px;
+    color: var(--text-light, #7A7690);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.reconcile-section-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin: 24px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1.5px solid var(--border);
+}
+
+.reconcile-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg-white, #fff);
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
+}
+
+.reconcile-item:hover {
+    border-color: var(--primary);
+    box-shadow: 0 6px 16px rgba(123, 97, 255, 0.06);
+}
+
+.reconcile-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.reconcile-item-date {
+    font-size: 11px;
+    color: var(--text-light, #7A7690);
+    font-weight: 700;
+}
+
+.reconcile-item-desc {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 700;
+    word-break: break-word;
+    line-height: 1.45;
+}
+
+.reconcile-item-amt {
+    font-size: 16px;
+    font-weight: 900;
+    text-align: right;
+    white-space: nowrap;
+    font-family: var(--font);
+}
+
+.reconcile-add-btn, .reconcile-delete-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: var(--font);
+}
+
+.reconcile-add-btn {
+    background: var(--primary-glow);
+    color: var(--primary);
+}
+
+.reconcile-add-btn:hover {
+    background: var(--primary);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(123, 97, 255, 0.2);
+}
+
+.reconcile-delete-btn {
+    background: rgba(255, 75, 75, 0.1);
+    color: var(--danger);
+}
+
+.reconcile-delete-btn:hover {
+    background: var(--danger);
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 75, 75, 0.2);
+}
+
+.reconcile-add-all-btn {
+    width: 100%;
+    border: none;
+    border-radius: 16px;
+    padding: 16px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    margin: 20px 0 32px;
+    box-shadow: 0 8px 24px rgba(123, 97, 255, 0.2);
+    transition: all 0.2s ease;
+    font-family: var(--font);
+}
+
+.reconcile-add-all-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(123, 97, 255, 0.35);
+}
+
+.reconcile-hint {
+    font-size: 12px;
+    color: var(--text-light);
+    margin: 6px 0 16px;
+    line-height: 1.6;
+}
+
+.reconcile-all-clear {
+    background: rgba(0, 201, 132, 0.08);
+    border: 1.5px solid rgba(0, 201, 132, 0.15);
+    color: #00C984;
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 800;
+    margin: 24px 0;
+}

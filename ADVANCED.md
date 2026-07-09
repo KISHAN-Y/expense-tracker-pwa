@@ -20,7 +20,7 @@ async function initializeCharts() {
 }
 
 async function renderMonthlyChart() {
-    const transactions = await DB.getAllTransactions();
+    const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
     const ctx = document.getElementById('monthlyChart');
     
     if (!ctx) return;
@@ -88,7 +88,7 @@ async function setMonthlyBudget(amount) {
 // Check budget status
 async function checkBudgetStatus() {
     const budget = await DB.getSetting('monthlyBudget');
-    const transactions = await DB.getAllTransactions();
+    const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
     const currentMonth = new Date().toISOString().substring(0, 7);
     
     const monthlyExpense = transactions
@@ -218,7 +218,7 @@ async function checkBudgetNotification() {
 ```javascript
 // Export all data as JSON
 async function exportDataAsJSON() {
-    const transactions = await DB.getAllTransactions();
+    const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
     const settings = {};
     
     const allSettings = await DB.db.transaction(CONFIG.STORES.SETTINGS, 'readonly')

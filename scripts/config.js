@@ -40,7 +40,7 @@ const CONFIG = {
         ['#EC4899', '#BE185D']
     ],
     DB_NAME: 'ExpenseTrackerDB',
-    DB_VERSION: 2,
+    DB_VERSION: 3,
     DEFAULT_USER_ID: 'default',
     STORES: {
         TRANSACTIONS: 'transactions',

@@ -8,21 +8,34 @@ const DB = {
             const request = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
 
             request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
+            request.onsuccess = async () => {
                 this.db = request.result;
+                try {
+                    await this.migrateLegacyUserIds();
+                } catch (e) {
+                    console.error('Error running legacy user ID migration:', e);
+                }
                 resolve(this.db);
             };
 
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
+                const transaction = event.target.transaction;
 
                 // Transactions store
+                let transStore;
                 if (!db.objectStoreNames.contains(CONFIG.STORES.TRANSACTIONS)) {
-                    const transStore = db.createObjectStore(CONFIG.STORES.TRANSACTIONS, { keyPath: 'id' });
+                    transStore = db.createObjectStore(CONFIG.STORES.TRANSACTIONS, { keyPath: 'id' });
                     transStore.createIndex('date', 'date', { unique: false });
                     transStore.createIndex('type', 'type', { unique: false });
                     transStore.createIndex('category', 'category', { unique: false });
                     transStore.createIndex('createdAt', 'createdAt', { unique: false });
+                } else {
+                    transStore = transaction.objectStore(CONFIG.STORES.TRANSACTIONS);
+                }
+
+                if (!transStore.indexNames.contains('userId')) {
+                    transStore.createIndex('userId', 'userId', { unique: false });
                 }
 
                 // Settings store
@@ -121,15 +134,22 @@ const DB = {
         });
     },
 
-    async getAllTransactions() {
+    async getAllTransactionsUnscoped() {
         const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
-        const currentUserId = this.getCurrentUserIdSync();
         return new Promise((resolve, reject) => {
             const request = store.getAll();
-            request.onsuccess = () => {
-                const list = request.result || [];
-                resolve(list.filter(t => t.userId === currentUserId || (!t.userId && currentUserId === 'default')));
-            };
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    async getTransactionsForUser(userId) {
+        const targetUserId = userId || this.getCurrentUserIdSync();
+        const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
+        const index = store.index('userId');
+        return new Promise((resolve, reject) => {
+            const request = index.getAll(targetUserId);
+            request.onsuccess = () => resolve(request.result || []);
             request.onerror = () => reject(request.error);
         });
     },
@@ -142,7 +162,7 @@ const DB = {
             const request = index.getAll(date);
             request.onsuccess = () => {
                 const list = request.result || [];
-                resolve(list.filter(t => t.userId === currentUserId || (!t.userId && currentUserId === 'default')));
+                resolve(list.filter(t => t.userId === currentUserId));
             };
             request.onerror = () => reject(request.error);
         });
@@ -156,7 +176,7 @@ const DB = {
             const request = index.getAll(type);
             request.onsuccess = () => {
                 const list = request.result || [];
-                resolve(list.filter(t => t.userId === currentUserId || (!t.userId && currentUserId === 'default')));
+                resolve(list.filter(t => t.userId === currentUserId));
             };
             request.onerror = () => reject(request.error);
         });
@@ -166,7 +186,7 @@ const DB = {
     // Run this ONCE (e.g. from DevTools console, or a temporary settings button)
     // to normalize any transactions that were saved before this fix existed.
     async migrateDateFormats() {
-        const all = await this.getAllTransactions();
+        const all = await this.getAllTransactionsUnscoped();
         let fixedCount = 0;
 
         for (const t of all) {
@@ -184,6 +204,92 @@ const DB = {
             Utils.showToast(`Fixed ${fixedCount} transaction date${fixedCount === 1 ? '' : 's'}`);
         }
         return fixedCount;
+    },
+
+    // ─── One-Time Migration: Assign legacy data to active user ────────────────
+    async migrateLegacyUserIds() {
+        const currentUserId = this.getCurrentUserIdSync();
+
+        // 1. Migrate transactions
+        const transStoreName = CONFIG.STORES.TRANSACTIONS;
+        if (this.db.objectStoreNames.contains(transStoreName)) {
+            const tx = this.db.transaction(transStoreName, 'readwrite');
+            const store = tx.objectStore(transStoreName);
+            await new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const list = request.result || [];
+                    let count = 0;
+                    for (const t of list) {
+                        if (t.userId === undefined || t.userId === null) {
+                            t.userId = currentUserId;
+                            store.put(t);
+                            count++;
+                        }
+                    }
+                    tx.oncomplete = () => {
+                        if (count > 0) console.log(`Migrated ${count} legacy transactions to user ID: ${currentUserId}`);
+                        resolve();
+                    };
+                    tx.onerror = () => reject(tx.error);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // 2. Migrate budgets
+        const budgetStoreName = CONFIG.STORES.BUDGETS;
+        if (this.db.objectStoreNames.contains(budgetStoreName)) {
+            const tx = this.db.transaction(budgetStoreName, 'readwrite');
+            const store = tx.objectStore(budgetStoreName);
+            await new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const list = request.result || [];
+                    let count = 0;
+                    for (const b of list) {
+                        if (b.userId === undefined || b.userId === null) {
+                            b.userId = currentUserId;
+                            store.put(b);
+                            count++;
+                        }
+                    }
+                    tx.oncomplete = () => {
+                        if (count > 0) console.log(`Migrated ${count} legacy budgets to user ID: ${currentUserId}`);
+                        resolve();
+                    };
+                    tx.onerror = () => reject(tx.error);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // 3. Migrate notifications
+        const notifStoreName = CONFIG.STORES.NOTIFICATIONS;
+        if (this.db.objectStoreNames.contains(notifStoreName)) {
+            const tx = this.db.transaction(notifStoreName, 'readwrite');
+            const store = tx.objectStore(notifStoreName);
+            await new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const list = request.result || [];
+                    let count = 0;
+                    for (const n of list) {
+                        if (n.userId === undefined || n.userId === null) {
+                            n.userId = currentUserId;
+                            store.put(n);
+                            count++;
+                        }
+                    }
+                    tx.oncomplete = () => {
+                        if (count > 0) console.log(`Migrated ${count} legacy notifications to user ID: ${currentUserId}`);
+                        resolve();
+                    };
+                    tx.onerror = () => reject(tx.error);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
     },
 
     // ─── Settings ────────────────────────────────────────────────────────────
@@ -295,14 +401,23 @@ const DB = {
         });
     },
 
-    async getAllBudgets() {
+    async getAllBudgetsUnscoped() {
         const store = this.db.transaction(CONFIG.STORES.BUDGETS, 'readonly').objectStore(CONFIG.STORES.BUDGETS);
-        const currentUserId = this.getCurrentUserIdSync();
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    async getBudgetsForUser(userId) {
+        const targetUserId = userId || this.getCurrentUserIdSync();
+        const store = this.db.transaction(CONFIG.STORES.BUDGETS, 'readonly').objectStore(CONFIG.STORES.BUDGETS);
         return new Promise((resolve, reject) => {
             const request = store.getAll();
             request.onsuccess = () => {
                 const list = request.result || [];
-                resolve(list.filter(b => b.userId === currentUserId || (!b.userId && currentUserId === 'default')));
+                resolve(list.filter(b => b.userId === targetUserId));
             };
             request.onerror = () => reject(request.error);
         });
@@ -316,7 +431,7 @@ const DB = {
             const request = index.getAll(monthYear);
             request.onsuccess = () => {
                 const list = request.result || [];
-                resolve(list.filter(b => b.userId === currentUserId || (!b.userId && currentUserId === 'default')));
+                resolve(list.filter(b => b.userId === currentUserId));
             };
             request.onerror = () => reject(request.error);
         });
@@ -338,14 +453,23 @@ const DB = {
         });
     },
 
-    async getAllNotifications() {
+    async getAllNotificationsUnscoped() {
         const store = this.db.transaction(CONFIG.STORES.NOTIFICATIONS, 'readonly').objectStore(CONFIG.STORES.NOTIFICATIONS);
-        const currentUserId = this.getCurrentUserIdSync();
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    async getNotificationsForUser(userId) {
+        const targetUserId = userId || this.getCurrentUserIdSync();
+        const store = this.db.transaction(CONFIG.STORES.NOTIFICATIONS, 'readonly').objectStore(CONFIG.STORES.NOTIFICATIONS);
         return new Promise((resolve, reject) => {
             const request = store.getAll();
             request.onsuccess = () => {
                 const list = request.result || [];
-                resolve(list.filter(n => n.userId === currentUserId || (!n.userId && currentUserId === 'default')));
+                resolve(list.filter(n => n.userId === targetUserId));
             };
             request.onerror = () => reject(request.error);
         });
@@ -370,15 +494,17 @@ const DB = {
         });
     },
 
-    async markAllNotificationsRead() {
+    async markAllNotificationsRead(userId) {
+        const targetUserId = userId || this.getCurrentUserIdSync();
         const store = this.db.transaction(CONFIG.STORES.NOTIFICATIONS, 'readwrite').objectStore(CONFIG.STORES.NOTIFICATIONS);
         return new Promise((resolve, reject) => {
             const request = store.getAll();
             request.onsuccess = () => {
-                const all = request.result;
-                let pending = all.length;
+                const all = request.result || [];
+                const userNotifs = all.filter(n => n.userId === targetUserId);
+                let pending = userNotifs.length;
                 if (pending === 0) return resolve(true);
-                all.forEach(n => {
+                userNotifs.forEach(n => {
                     n.read = true;
                     const putReq = store.put(n);
                     putReq.onsuccess = () => { if (--pending === 0) resolve(true); };
@@ -389,8 +515,9 @@ const DB = {
         });
     },
 
-    async getUnreadNotificationCount() {
-        const all = await this.getAllNotifications();
+    async getUnreadNotificationCount(userId) {
+        const targetUserId = userId || this.getCurrentUserIdSync();
+        const all = await this.getNotificationsForUser(targetUserId);
         return all.filter(n => !n.read).length;
     },
 

@@ -63,6 +63,15 @@ const APP = {
 
             // Register service worker & initialize 3-hour notification reminders
             if ('serviceWorker' in navigator) {
+                // Auto-refresh page when new Service Worker activates (skipWaiting takes over)
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        window.location.reload();
+                    }
+                });
+
                 navigator.serviceWorker.register('service-worker.js')
                     .then(reg => {
                         console.log('Service Worker registered');
@@ -164,7 +173,7 @@ const APP = {
             // 2. Fetch fresh data in the background if online
             if (Utils.isOnline()) {
                 // If there is no local data, show skeletons while API is loading to prevent empty state flash
-                const localTx = await DB.getAllTransactions();
+                const localTx = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
                 if (localTx.length === 0) {
                     UI.showSkeletons('recentTransactions', 3);
                     UI.showSkeletons('historyTransactions', 5);
@@ -372,7 +381,7 @@ const APP = {
     // Edit transaction
     async editTransaction(id) {
         try {
-            const transactions = await DB.getAllTransactions();
+            const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
             const transaction = transactions.find(t => t.id === id);
 
             if (!transaction) {
