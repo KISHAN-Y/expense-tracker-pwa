@@ -10,6 +10,8 @@
 const SHEET_ID = '1AoPoKNdtC0LbkXUb1286gdQSIPzS2AYBi517hg8JR7g'; // Your Google Sheet ID
 const SHEET_NAME = 'Sheet1';
 const USERS_SHEET_NAME = 'Users';
+const ACCOUNTS_SHEET_NAME = 'Accounts';
+const DEFAULT_ACCOUNT_ID = '00000000-0000-0000-0000-000000000001';
 
 // Helper function to find a sheet tab case-insensitively
 function getSheetByNameCaseInsensitive(ss, name) {
@@ -23,6 +25,45 @@ function getSheetByNameCaseInsensitive(ss, name) {
     return null;
 }
 
+// Clean and parse currency amount robustly
+function cleanAmount(amountVal) {
+    if (amountVal === undefined || amountVal === null) return 0;
+    if (typeof amountVal === 'number') return amountVal;
+    
+    const cleanStr = String(amountVal)
+        .replace(/[₹$€\s,]/g, '') // remove currency symbols, spaces, commas
+        .trim();
+    const num = parseFloat(cleanStr);
+    return isNaN(num) ? 0 : num;
+}
+
+// Normalize any date value to ISO YYYY-MM-DD string.
+// Handles: JS Date objects (from Google Sheets), ISO strings, DD/MM/YYYY, MM/DD/YYYY.
+function toISODate(dateVal) {
+    if (!dateVal) return '';
+    if (dateVal instanceof Date) {
+        const y = dateVal.getFullYear();
+        const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+        const d = String(dateVal.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    const s = String(dateVal).trim();
+    // Already ISO YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+    // Try DD/MM/YYYY or MM/DD/YYYY
+    const parts = s.split(/[\/\-\.]/);
+    if (parts.length === 3) {
+        const [a, b, c] = parts.map(Number);
+        // If first part > 12, it's DD/MM/YYYY
+        if (a > 12) return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
+        // If second part > 12, it's MM/DD/YYYY
+        if (b > 12) return `${c}-${String(a).padStart(2, '0')}-${String(b).padStart(2, '0')}`;
+        // Ambiguous — assume DD/MM/YYYY (Indian locale convention)
+        return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
+    }
+    return s;
+}
+
 // Get spreadsheet
 function getSheet() {
     const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -31,11 +72,53 @@ function getSheet() {
         sheet = ss.insertSheet(SHEET_NAME);
         sheet.appendRow(['ID', 'Date', 'Type', 'Category', 'Amount', 'Description', 'CreatedAt', 'UserId']);
     } else {
-        // Automatically check if UserId header exists, if not, append it
+        // Automatically check if UserId and AccountId headers exist, if not, append them
         const headers = sheet.getDataRange().getValues()[0];
+        let modified = false;
         if (findHeaderIndex(headers, 'UserId') === -1) {
             sheet.getRange(1, headers.length + 1).setValue('UserId');
+            headers.push('UserId');
+            modified = true;
+        }
+        if (findHeaderIndex(headers, 'AccountId') === -1) {
+            sheet.getRange(1, headers.length + 1).setValue('AccountId');
+            modified = true;
+        }
+        if (modified) {
             SpreadsheetApp.flush();
+        }
+    }
+    return sheet;
+}
+
+// Get Accounts spreadsheet
+function getAccountsSheet() {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sheet = getSheetByNameCaseInsensitive(ss, ACCOUNTS_SHEET_NAME);
+    if (!sheet) {
+        sheet = ss.insertSheet(ACCOUNTS_SHEET_NAME);
+        sheet.appendRow(['id', 'name', 'type', 'balance', 'userId', 'createdAt', 'openingBalance', 'openingBalanceDate']);
+    } else {
+        const data = sheet.getDataRange().getValues();
+        if (data.length === 0) {
+            sheet.appendRow(['id', 'name', 'type', 'balance', 'userId', 'createdAt', 'openingBalance', 'openingBalanceDate']);
+            SpreadsheetApp.flush();
+        } else {
+            // Auto-append missing headers
+            const headers = data[0];
+            let modified = false;
+            if (findHeaderIndex(headers, 'openingBalance') === -1) {
+                sheet.getRange(1, headers.length + 1).setValue('openingBalance');
+                headers.push('openingBalance');
+                modified = true;
+            }
+            if (findHeaderIndex(headers, 'openingBalanceDate') === -1) {
+                sheet.getRange(1, headers.length + 1).setValue('openingBalanceDate');
+                modified = true;
+            }
+            if (modified) {
+                SpreadsheetApp.flush();
+            }
         }
     }
     return sheet;
@@ -298,27 +381,102 @@ function doGet(e) {
         // Convert to array of objects (skip header)
         const transactions = [];
         const headers = data[0];
-        const userIdIdx = headers.indexOf('UserId');
+        const userIdIdx = findHeaderIndex(headers, 'UserId');
+        const accountIdIdx = findHeaderIndex(headers, 'AccountId');
 
+        let modified = false;
         for (let i = 1; i < data.length; i++) {
-            const rowUserId = userIdIdx !== -1 ? data[i][userIdIdx] : '';
+            let rowUserId = userIdIdx !== -1 ? data[i][userIdIdx] : '';
+            let rawAccountId = accountIdIdx !== -1 ? data[i][accountIdIdx] : '';
+
+            // Backfill blank UserId for logged in user if it's empty
+            if (!rowUserId && reqUserId !== 'default' && userIdIdx !== -1) {
+                sheet.getRange(i + 1, userIdIdx + 1).setValue(reqUserId);
+                rowUserId = reqUserId;
+                modified = true;
+            }
+
+            // Backfill blank AccountId with DEFAULT_ACCOUNT_ID if empty
+            if (!rawAccountId && accountIdIdx !== -1) {
+                sheet.getRange(i + 1, accountIdIdx + 1).setValue(DEFAULT_ACCOUNT_ID);
+                rawAccountId = DEFAULT_ACCOUNT_ID;
+                modified = true;
+            }
 
             // Only return rows matching reqUserId. For backward compatibility, map empty userId to 'default'
             if (rowUserId === reqUserId || (!rowUserId && reqUserId === 'default')) {
+                const accountId = rawAccountId ? rawAccountId.toString().trim() : DEFAULT_ACCOUNT_ID;
+                
                 transactions.push({
                     id: data[i][0],
                     date: data[i][1],
                     type: data[i][2],
                     category: data[i][3],
-                    amount: data[i][4],
+                    amount: data[i][4] !== undefined && data[i][4] !== null ? data[i][4].toString() : '0',
                     description: data[i][5],
                     createdAt: data[i][6],
-                    userId: rowUserId || 'default'
+                    userId: rowUserId || 'default',
+                    accountId: accountId
                 });
             }
         }
 
-        return createCorsResponse({ success: true, transactions: transactions });
+        if (modified) {
+            SpreadsheetApp.flush();
+        }
+
+        // Get accounts
+        const accountsSheet = getAccountsSheet();
+        const accountsData = accountsSheet.getDataRange().getValues();
+        const accounts = [];
+        const accHeaders = accountsData[0];
+        const accUserIdIdx = findHeaderIndex(accHeaders, 'userId');
+        const accOpeningBalIdx = findHeaderIndex(accHeaders, 'openingBalance');
+        const accOpeningDateIdx = findHeaderIndex(accHeaders, 'openingBalanceDate');
+        
+        for (let i = 1; i < accountsData.length; i++) {
+            const rowUserId = accUserIdIdx !== -1 ? accountsData[i][accUserIdIdx] : '';
+            if (rowUserId === reqUserId || (!rowUserId && reqUserId === 'default')) {
+                accounts.push({
+                    id: accountsData[i][0],
+                    name: accountsData[i][1],
+                    type: accountsData[i][2],
+                    balance: accountsData[i][3],
+                    userId: rowUserId || 'default',
+                    createdAt: accountsData[i][5],
+                    openingBalance: accOpeningBalIdx !== -1 ? cleanAmount(accountsData[i][accOpeningBalIdx]) : 0,
+                    openingBalanceDate: accOpeningDateIdx !== -1 ? toISODate(accountsData[i][accOpeningDateIdx]) : ''
+                });
+            }
+        }
+
+        // If no accounts exist for this user, auto-seed the default account
+        if (accounts.length === 0) {
+            const defaultAccRow = [
+                DEFAULT_ACCOUNT_ID,
+                'Main Account',
+                'Checking',
+                0,
+                reqUserId || 'default',
+                new Date().toISOString(),
+                0,   // openingBalance
+                ''   // openingBalanceDate
+            ];
+            accountsSheet.appendRow(defaultAccRow);
+            SpreadsheetApp.flush();
+            accounts.push({
+                id: DEFAULT_ACCOUNT_ID,
+                name: 'Main Account',
+                type: 'Checking',
+                balance: 0,
+                userId: reqUserId || 'default',
+                createdAt: defaultAccRow[5],
+                openingBalance: 0,
+                openingBalanceDate: ''
+            });
+        }
+
+        return createCorsResponse({ success: true, transactions: transactions, accounts: accounts });
     } catch (error) {
         return createCorsResponse({ success: false, error: error.toString() });
     }
@@ -337,10 +495,18 @@ function doPost(e) {
                 return createCorsResponse(loginUser(actionData.email, actionData.password));
             case 'CREATE':
                 return createTransaction(actionData, userId);
+            case 'BATCH_CREATE':
+                return createTransactions(actionData, userId);
             case 'UPDATE':
                 return updateTransaction(actionData, userId);
             case 'DELETE':
                 return deleteTransaction(actionData, userId);
+            case 'CREATE_ACCOUNT':
+                return createAccount(actionData, userId);
+            case 'UPDATE_ACCOUNT':
+                return updateAccount(actionData, userId);
+            case 'DELETE_ACCOUNT':
+                return deleteAccount(actionData, userId);
             case 'SEND_PROMO_EMAIL':
                 return createCorsResponse(sendPromotionalEmail(actionData.email));
             case 'SEND_REPORT_EMAIL':
@@ -380,22 +546,30 @@ function createTransaction(transaction, userId) {
     try {
         const sheet = getSheet();
         const headers = sheet.getDataRange().getValues()[0];
-        const userIdIdx = headers.indexOf('UserId');
+        const userIdIdx = findHeaderIndex(headers, 'UserId');
+        const accountIdIdx = findHeaderIndex(headers, 'AccountId');
 
         const row = [
             transaction.id,
             transaction.date,
             transaction.type,
             transaction.category,
-            transaction.amount,
+            cleanAmount(transaction.amount),
             transaction.description || '',
             new Date().toISOString()
         ];
 
+        // Ensure row is long enough
+        while (row.length < headers.length) {
+            row.push('');
+        }
+
         if (userIdIdx !== -1) {
             row[userIdIdx] = userId || 'default';
-        } else {
-            row.push(userId || 'default');
+        }
+        
+        if (accountIdIdx !== -1) {
+            row[accountIdIdx] = transaction.accountId || DEFAULT_ACCOUNT_ID;
         }
 
         sheet.appendRow(row);
@@ -411,13 +585,67 @@ function createTransaction(transaction, userId) {
     }
 }
 
+// Batch create transactions
+function createTransactions(transactions, userId) {
+    try {
+        const sheet = getSheet();
+        const headers = sheet.getDataRange().getValues()[0];
+        const userIdIdx = findHeaderIndex(headers, 'UserId');
+        const accountIdIdx = findHeaderIndex(headers, 'AccountId');
+
+        const rows = [];
+        for (const transaction of transactions) {
+            const row = [
+                transaction.id,
+                transaction.date,
+                transaction.type,
+                transaction.category,
+                cleanAmount(transaction.amount),
+                transaction.description || '',
+                new Date().toISOString()
+            ];
+
+            // Ensure row is long enough
+            while (row.length < headers.length) {
+                row.push('');
+            }
+
+            if (userIdIdx !== -1) {
+                row[userIdIdx] = userId || 'default';
+            }
+            
+            if (accountIdIdx !== -1) {
+                row[accountIdIdx] = transaction.accountId || DEFAULT_ACCOUNT_ID;
+            }
+            rows.push(row);
+        }
+
+        // Batch append
+        if (rows.length > 0) {
+            const lastRow = sheet.getLastRow();
+            const range = sheet.getRange(lastRow + 1, 1, rows.length, headers.length);
+            range.setValues(rows);
+            SpreadsheetApp.flush();
+        }
+
+        return createCorsResponse({
+            success: true,
+            message: transactions.length + ' Transactions created',
+            transactions: transactions
+        });
+    } catch (error) {
+        return errorResponse(error.toString());
+    }
+}
+
 // Update transaction
 function updateTransaction(transaction, userId) {
     try {
         const sheet = getSheet();
         const data = sheet.getDataRange().getValues();
         const headers = data[0];
-        const userIdIdx = headers.indexOf('UserId');
+        const userIdIdx = findHeaderIndex(headers, 'UserId');
+        const accountIdIdx = findHeaderIndex(headers, 'AccountId');
         const targetUserId = userId || 'default';
 
         // Find and update the row
@@ -435,16 +663,25 @@ function updateTransaction(transaction, userId) {
                     transaction.date,
                     transaction.type,
                     transaction.category,
-                    transaction.amount,
+                    cleanAmount(transaction.amount),
                     transaction.description || '',
                     data[i][6] // Keep original createdAt
                 ];
+                
+                // Ensure array length
+                while (updatedRow.length < headers.length) {
+                    updatedRow.push('');
+                }
 
                 if (userIdIdx !== -1) {
                     updatedRow[userIdIdx] = targetUserId;
                 }
+                
+                if (accountIdIdx !== -1) {
+                    updatedRow[accountIdIdx] = transaction.accountId || DEFAULT_ACCOUNT_ID;
+                }
 
-                sheet.getRange(i + 1, 1, 1, Math.max(7, userIdIdx + 1)).setValues([updatedRow]);
+                sheet.getRange(i + 1, 1, 1, headers.length).setValues([updatedRow]);
                 SpreadsheetApp.flush();
 
                 return createCorsResponse({
@@ -467,7 +704,7 @@ function deleteTransaction(data, userId) {
         const sheet = getSheet();
         const sheetData = sheet.getDataRange().getValues();
         const headers = sheetData[0];
-        const userIdIdx = headers.indexOf('UserId');
+        const userIdIdx = findHeaderIndex(headers, 'UserId');
         const targetUserId = userId || 'default';
 
         // Find and delete the row
@@ -491,6 +728,117 @@ function deleteTransaction(data, userId) {
         }
 
         return errorResponse('Transaction not found');
+    } catch (error) {
+        return errorResponse(error.toString());
+    }
+}
+
+// ============ ACCOUNT FUNCTIONS ============
+
+function createAccount(account, userId) {
+    try {
+        const sheet = getAccountsSheet();
+        const headers = sheet.getDataRange().getValues()[0];
+        
+        const row = [
+            account.id,
+            account.name,
+            account.type || '',
+            cleanAmount(account.balance),
+            userId || 'default',
+            new Date().toISOString(),
+            cleanAmount(account.openingBalance),
+            toISODate(account.openingBalanceDate)
+        ];
+
+        sheet.appendRow(row);
+        SpreadsheetApp.flush();
+
+        return createCorsResponse({
+            success: true,
+            message: 'Account created',
+            account: account
+        });
+    } catch (error) {
+        return errorResponse(error.toString());
+    }
+}
+
+function updateAccount(account, userId) {
+    try {
+        const sheet = getAccountsSheet();
+        const data = sheet.getDataRange().getValues();
+        const headers = data[0];
+        const targetUserId = userId || 'default';
+        const userIdIdx = findHeaderIndex(headers, 'userId');
+
+        // Find and update the row
+        for (let i = 1; i < data.length; i++) {
+            if (data[i][0] === account.id) {
+                const rowUserId = userIdIdx !== -1 ? data[i][userIdIdx] : '';
+
+                // Check ownership
+                if (rowUserId && rowUserId !== targetUserId) {
+                    return errorResponse('Unauthorized: You do not own this account');
+                }
+
+                const updatedRow = [
+                    account.id,
+                    account.name,
+                    account.type || '',
+                    cleanAmount(account.balance),
+                    targetUserId,
+                    data[i][5], // Keep original createdAt
+                    cleanAmount(account.openingBalance),
+                    toISODate(account.openingBalanceDate)
+                ];
+
+                sheet.getRange(i + 1, 1, 1, headers.length).setValues([updatedRow]);
+                SpreadsheetApp.flush();
+
+                return createCorsResponse({
+                    success: true,
+                    message: 'Account updated',
+                    account: account
+                });
+            }
+        }
+
+        return errorResponse('Account not found');
+    } catch (error) {
+        return errorResponse(error.toString());
+    }
+}
+
+function deleteAccount(data, userId) {
+    try {
+        const sheet = getAccountsSheet();
+        const sheetData = sheet.getDataRange().getValues();
+        const headers = sheetData[0];
+        const targetUserId = userId || 'default';
+        const userIdIdx = findHeaderIndex(headers, 'userId');
+
+        // Find and delete the row
+        for (let i = 1; i < sheetData.length; i++) {
+            if (sheetData[i][0] === data.id) {
+                const rowUserId = userIdIdx !== -1 ? sheetData[i][userIdIdx] : '';
+
+                // Check ownership
+                if (rowUserId && rowUserId !== targetUserId) {
+                    return errorResponse('Unauthorized: You do not own this account');
+                }
+
+                sheet.deleteRow(i + 1);
+                SpreadsheetApp.flush();
+
+                return createCorsResponse({
+                    success: true,
+                    message: 'Account deleted'
+                });
+            }
+        }
+
+        return errorResponse('Account not found');
     } catch (error) {
         return errorResponse(error.toString());
     }

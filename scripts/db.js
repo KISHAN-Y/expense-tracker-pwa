@@ -12,8 +12,9 @@ const DB = {
                 this.db = request.result;
                 try {
                     await this.migrateLegacyUserIds();
+                    await this.migrateAccounts();
                 } catch (e) {
-                    console.error('Error running legacy user ID migration:', e);
+                    console.error('Error running migrations:', e);
                 }
                 resolve(this.db);
             };
@@ -36,6 +37,9 @@ const DB = {
 
                 if (!transStore.indexNames.contains('userId')) {
                     transStore.createIndex('userId', 'userId', { unique: false });
+                }
+                if (!transStore.indexNames.contains('accountId')) {
+                    transStore.createIndex('accountId', 'accountId', { unique: false });
                 }
 
                 // Settings store
@@ -60,6 +64,11 @@ const DB = {
                     const notifStore = db.createObjectStore(CONFIG.STORES.NOTIFICATIONS, { keyPath: 'id' });
                     notifStore.createIndex('createdAt', 'createdAt', { unique: false });
                     notifStore.createIndex('read', 'read', { unique: false });
+                }
+
+                // Accounts store (new in v4)
+                if (!db.objectStoreNames.contains(CONFIG.STORES.ACCOUNTS)) {
+                    db.createObjectStore(CONFIG.STORES.ACCOUNTS, { keyPath: 'id' });
                 }
             };
         });
@@ -93,6 +102,205 @@ const DB = {
         return 'default';
     },
 
+    // ─── Accounts ────────────────────────────────────────────────────────────
+
+    async addAccount(account) {
+        account.id = account.id || Utils.generateId();
+        account.createdAt = account.createdAt || new Date().toISOString();
+        const currentUserId = this.getCurrentUserIdSync();
+        account.userId = account.userId || currentUserId;
+
+        const store = this.db.transaction(CONFIG.STORES.ACCOUNTS, 'readwrite').objectStore(CONFIG.STORES.ACCOUNTS);
+        return new Promise((resolve, reject) => {
+            const request = store.add(account);
+            request.onsuccess = () => resolve(account);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    async getAccounts() {
+        const store = this.db.transaction(CONFIG.STORES.ACCOUNTS, 'readonly').objectStore(CONFIG.STORES.ACCOUNTS);
+        const currentUserId = this.getCurrentUserIdSync();
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const list = request.result || [];
+                resolve(list.filter(a => 
+                    a.userId === currentUserId || 
+                    a.userId === 'default' || 
+                    a.id === CONFIG.DEFAULT_ACCOUNT_ID || 
+                    (!a.userId && currentUserId === 'default')
+                ));
+            };
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    async getAccount(id) {
+        const store = this.db.transaction(CONFIG.STORES.ACCOUNTS, 'readonly').objectStore(CONFIG.STORES.ACCOUNTS);
+        return new Promise((resolve, reject) => {
+            const request = store.get(id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    async updateAccount(account) {
+        const currentUserId = this.getCurrentUserIdSync();
+        account.userId = account.userId || currentUserId;
+
+        const store = this.db.transaction(CONFIG.STORES.ACCOUNTS, 'readwrite').objectStore(CONFIG.STORES.ACCOUNTS);
+        return new Promise((resolve, reject) => {
+            const request = store.put(account);
+            request.onsuccess = () => resolve(account);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    async deleteAccount(id) {
+        // Block deletion if transactions exist for this account
+        const transStore = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readonly').objectStore(CONFIG.STORES.TRANSACTIONS);
+        const txIndex = transStore.index('accountId');
+        
+        return new Promise((resolve, reject) => {
+            const checkReq = txIndex.count(id);
+            checkReq.onsuccess = () => {
+                if (checkReq.result > 0) {
+                    reject(new Error('Cannot delete account. There are transactions linked to it.'));
+                    return;
+                }
+                
+                const deleteTx = this.db.transaction(CONFIG.STORES.ACCOUNTS, 'readwrite');
+                const store = deleteTx.objectStore(CONFIG.STORES.ACCOUNTS);
+                const req = store.delete(id);
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => reject(req.error);
+            };
+            checkReq.onerror = () => reject(checkReq.error);
+        });
+    },
+
+    // ─── Balance Computation (shared, single source of truth) ────────────────
+    // Normalize any date value to ISO YYYY-MM-DD string.
+    _toISODate(dateVal) {
+        if (!dateVal) return '';
+        if (dateVal instanceof Date) {
+            const y = dateVal.getFullYear();
+            const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+            const d = String(dateVal.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        const s = String(dateVal).trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+        const parts = s.split(/[\/\-\.]/);
+        if (parts.length === 3) {
+            const [a, b, c] = parts.map(Number);
+            if (a > 12) return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
+            if (b > 12) return `${c}-${String(a).padStart(2, '0')}-${String(b).padStart(2, '0')}`;
+            return `${c}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
+        }
+        return s;
+    },
+
+    /**
+     * Compute the current balance for a single account.
+     * balance = openingBalance + sum(income) - sum(expense)  [for dates >= openingBalanceDate]
+     */
+    async computeAccountBalance(accountId) {
+        const account = await this.getAccount(accountId);
+        if (!account) return 0;
+
+        const openingBalance = parseFloat(account.openingBalance) || 0;
+        const openingDate = this._toISODate(account.openingBalanceDate) || '';
+
+        const allTx = await this.getTransactionsForUser(this.getCurrentUserIdSync());
+        const txForAccount = allTx.filter(t => {
+            if (t.accountId !== accountId && accountId !== undefined) return false;
+            if (openingDate) {
+                const txDate = this._toISODate(t.date);
+                if (txDate < openingDate) return false;
+            }
+            return true;
+        });
+
+        let net = openingBalance;
+        for (const t of txForAccount) {
+            const amt = parseFloat(t.amount) || 0;
+            if (t.type === 'income') net += amt;
+            else net -= amt;
+        }
+        return net;
+    },
+
+    /**
+     * Compute the total balance across ALL accounts for the current user.
+     * Used by the dashboard for the single combined balance display.
+     */
+    async computeTotalBalance() {
+        const accounts = await this.getAccounts();
+        let total = 0;
+        for (const acc of accounts) {
+            total += await this.computeAccountBalance(acc.id);
+        }
+        return total;
+    },
+
+    /**
+     * Compute daily running balances for an account (or all accounts if null).
+     * Returns { [isoDate]: runningBalance } starting from openingBalance.
+     * Used by History page for "Day End" labels.
+     */
+    async computeDailyBalances(accountId) {
+        let openingBalance = 0;
+        let openingDate = '';
+
+        if (accountId) {
+            const account = await this.getAccount(accountId);
+            if (account) {
+                openingBalance = parseFloat(account.openingBalance) || 0;
+                openingDate = this._toISODate(account.openingBalanceDate) || '';
+            }
+        } else {
+            // Sum opening balances across all accounts
+            const accounts = await this.getAccounts();
+            for (const acc of accounts) {
+                openingBalance += parseFloat(acc.openingBalance) || 0;
+                // Use earliest openingBalanceDate across accounts
+                const d = this._toISODate(acc.openingBalanceDate);
+                if (d && (!openingDate || d < openingDate)) openingDate = d;
+            }
+        }
+
+        const allTx = await this.getTransactionsForUser(this.getCurrentUserIdSync());
+        const filtered = allTx.filter(t => {
+            if (accountId && t.accountId !== accountId) return false;
+            if (openingDate) {
+                const txDate = this._toISODate(t.date);
+                if (txDate < openingDate) return false;
+            }
+            return true;
+        });
+
+        // Group by date
+        const ledger = {};
+        for (const t of filtered) {
+            const d = this._toISODate(t.date) || t.date;
+            if (!ledger[d]) ledger[d] = { income: 0, expense: 0 };
+            const amt = parseFloat(t.amount) || 0;
+            if (t.type === 'income') ledger[d].income += amt;
+            else ledger[d].expense += amt;
+        }
+
+        const sortedDates = Object.keys(ledger).sort();
+        let running = openingBalance;
+        const dailyBalances = {};
+        for (const date of sortedDates) {
+            running += ledger[date].income - ledger[date].expense;
+            dailyBalances[date] = running;
+        }
+        return dailyBalances;
+    },
+
     // ─── Transactions ────────────────────────────────────────────────────────
 
     async addTransaction(transaction) {
@@ -100,6 +308,7 @@ const DB = {
         transaction.createdAt = transaction.createdAt || new Date().toISOString();
         const currentUserId = this.getCurrentUserIdSync();
         transaction.userId = transaction.userId || currentUserId;
+        transaction.accountId = transaction.accountId || CONFIG.DEFAULT_ACCOUNT_ID;
         // Normalize date at write time so every new record is consistent
         if (transaction.date) transaction.date = this._normalizeDate(transaction.date);
 
@@ -116,6 +325,7 @@ const DB = {
         if (transaction.date) transaction.date = this._normalizeDate(transaction.date);
         const currentUserId = this.getCurrentUserIdSync();
         transaction.userId = transaction.userId || currentUserId;
+        transaction.accountId = transaction.accountId || CONFIG.DEFAULT_ACCOUNT_ID;
 
         const store = this.db.transaction(CONFIG.STORES.TRANSACTIONS, 'readwrite').objectStore(CONFIG.STORES.TRANSACTIONS);
         return new Promise((resolve, reject) => {
@@ -292,6 +502,68 @@ const DB = {
         }
     },
 
+    // ─── One-Time Migration: Accounts ─────────────────────────────────────────
+    async migrateAccounts() {
+        const currentUserId = this.getCurrentUserIdSync();
+        
+        // 1. Check if we have any accounts
+        const accountsStoreName = CONFIG.STORES.ACCOUNTS;
+        if (!this.db.objectStoreNames.contains(accountsStoreName)) return;
+
+        let hasAccounts = false;
+        const txAccounts = this.db.transaction(accountsStoreName, 'readonly');
+        const storeAccounts = txAccounts.objectStore(accountsStoreName);
+        await new Promise((resolve) => {
+            const req = storeAccounts.count();
+            req.onsuccess = () => {
+                hasAccounts = req.result > 0;
+                resolve();
+            };
+        });
+
+        if (!hasAccounts) {
+            // Create default account
+            const defaultAccount = {
+                id: CONFIG.DEFAULT_ACCOUNT_ID,
+                name: 'Main Account',
+                type: 'Checking',
+                balance: 0,
+                userId: currentUserId,
+                createdAt: new Date().toISOString()
+            };
+            const txAdd = this.db.transaction(accountsStoreName, 'readwrite');
+            txAdd.objectStore(accountsStoreName).add(defaultAccount);
+            await new Promise((resolve) => { txAdd.oncomplete = resolve; });
+        }
+
+        // 2. Migrate transactions missing accountId
+        const transStoreName = CONFIG.STORES.TRANSACTIONS;
+        if (this.db.objectStoreNames.contains(transStoreName)) {
+            const tx = this.db.transaction(transStoreName, 'readwrite');
+            const store = tx.objectStore(transStoreName);
+            await new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = () => {
+                    const list = request.result || [];
+                    let count = 0;
+                    for (const t of list) {
+                        if (!t.accountId) {
+                            t.accountId = CONFIG.DEFAULT_ACCOUNT_ID;
+                            store.put(t);
+                            count++;
+                        }
+                    }
+                    tx.oncomplete = () => {
+                        if (count > 0) console.log(`Migrated ${count} legacy transactions to Default Account`);
+                        resolve();
+                    };
+                    tx.onerror = () => reject(tx.error);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+    },
+
     // ─── Settings ────────────────────────────────────────────────────────────
 
     async getSetting(key) {
@@ -321,10 +593,20 @@ const DB = {
         });
     },
 
+    async clearAccounts() {
+        const store = this.db.transaction(CONFIG.STORES.ACCOUNTS, 'readwrite').objectStore(CONFIG.STORES.ACCOUNTS);
+        return new Promise((resolve, reject) => {
+            const request = store.clear();
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
     async clearAll() {
-        const transaction = this.db.transaction([CONFIG.STORES.TRANSACTIONS, CONFIG.STORES.SETTINGS], 'readwrite');
+        const transaction = this.db.transaction([CONFIG.STORES.TRANSACTIONS, CONFIG.STORES.ACCOUNTS, CONFIG.STORES.SETTINGS], 'readwrite');
         return new Promise((resolve, reject) => {
             transaction.objectStore(CONFIG.STORES.TRANSACTIONS).clear();
+            transaction.objectStore(CONFIG.STORES.ACCOUNTS).clear();
             transaction.objectStore(CONFIG.STORES.SETTINGS).clear();
             transaction.oncomplete = () => resolve(true);
             transaction.onerror = () => reject(transaction.error);

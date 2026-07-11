@@ -112,6 +112,27 @@ const Utils = {
         const loader = document.getElementById('loadingIndicator');
         if (!loader) return;
         loader.classList.toggle('show', show);
+
+        // Keep resetting the APP idle timer while loading is active to prevent auto logout during long operations
+        if (show) {
+            if (typeof APP !== 'undefined' && APP.resetIdleTimer) {
+                APP.resetIdleTimer();
+                if (this._loadingResetInterval) clearInterval(this._loadingResetInterval);
+                this._loadingResetInterval = setInterval(() => {
+                    if (typeof APP !== 'undefined' && APP.resetIdleTimer) {
+                        APP.resetIdleTimer();
+                    }
+                }, 30000); // Reset every 30 seconds while loading
+            }
+        } else {
+            if (this._loadingResetInterval) {
+                clearInterval(this._loadingResetInterval);
+                this._loadingResetInterval = null;
+            }
+            if (typeof APP !== 'undefined' && APP.resetIdleTimer) {
+                APP.resetIdleTimer(); // Final reset when loading stops
+            }
+        }
     },
 
     // Validate email

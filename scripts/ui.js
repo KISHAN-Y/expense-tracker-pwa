@@ -114,8 +114,10 @@ const UI = {
     },
 
     // ─── Custom Bottom Sheets ─────────────────────────────────────────────────
-    openCustomSheet(sheetId) {
-        this.closeCustomSheets();
+    openCustomSheet(sheetId, keepOthersOpen = false) {
+        if (!keepOthersOpen) {
+            this.closeCustomSheets();
+        }
         document.getElementById('customSheetOverlay')?.classList.add('visible');
         document.getElementById(sheetId)?.classList.add('open');
 
@@ -123,6 +125,26 @@ const UI = {
         const fabRoot = document.getElementById('fabRoot');
         if (bottomNav) bottomNav.style.display = 'none';
         if (fabRoot) fabRoot.style.display = 'none';
+    },
+
+    closeCustomSheet(sheetId) {
+        document.getElementById(sheetId)?.classList.remove('open');
+        const anyOpen = Array.from(document.querySelectorAll('.custom-sheet')).some(s => s.classList.contains('open'));
+        if (!anyOpen) {
+            document.getElementById('customSheetOverlay')?.classList.remove('visible');
+            document.getElementById('budgetSheetOverlay')?.classList.remove('visible');
+
+            const activePage = document.querySelector('.page.active');
+            const fullScreenPages = ['addIncome', 'addExpense', 'transactionDetail'];
+            const isFullScreen = activePage && fullScreenPages.includes(activePage.id);
+
+            if (!isFullScreen) {
+                const bottomNav = document.querySelector('.bottom-nav');
+                const fabRoot = document.getElementById('fabRoot');
+                if (bottomNav) bottomNav.style.display = '';
+                if (fabRoot) fabRoot.style.display = '';
+            }
+        }
     },
 
     closeCustomSheets() {
@@ -434,6 +456,96 @@ const UI = {
         if (trigger && text) { text.textContent = 'Category'; trigger.classList.remove('has-value'); }
     },
 
+    // ─── Account Picker ──────────────────────────────────────────────────────
+    async openAccountPicker(type) {
+        this.activeAccountType = type;
+        const accounts = await DB.getAccounts();
+        
+        // Add default account option
+        const currentVal = document.getElementById(`${type}Account`)?.value || CONFIG.DEFAULT_ACCOUNT_ID;
+        const container = document.getElementById('accountPickerList');
+
+        if (container) {
+            container.innerHTML = accounts.map(acc => {
+                const isActive = acc.id === currentVal ? 'active' : '';
+                return `
+                <button class="category-picker-item ${isActive}" data-account="${acc.id}" data-name="${acc.name}">
+                    <span class="category-picker-icon">🏦</span>
+                    <span>${acc.name}</span>
+                </button>`;
+            }).join('');
+        }
+
+        // Keep reconcileSheet open underneath when selecting account for reconciliation
+        const keepOthersOpen = type === 'reconcile';
+        this.openCustomSheet('accountPickerSheet', keepOthersOpen);
+    },
+
+    selectAccount(accountId, accountName) {
+        const type = this.activeAccountType;
+        const input = document.getElementById(`${type}Account`);
+        const trigger = document.getElementById(`${type}AccountTrigger`);
+        const text = document.getElementById(`${type}AccountText`);
+
+        if (input) input.value = accountId;
+        if (trigger && text) {
+            text.innerHTML = `<span>🏦</span> <span>${accountName}</span>`;
+            trigger.classList.add('has-value');
+        }
+
+        if (type === 'reconcile') {
+            // Close picker but keep reconcileSheet open
+            this.closeCustomSheet('accountPickerSheet');
+            // Auto trigger PDF upload after picker transition ends
+            setTimeout(() => {
+                document.getElementById('statementFileInput')?.click();
+            }, 300);
+        } else {
+            this.closeCustomSheets();
+        }
+    },
+
+    resetAccountTrigger(type) {
+        const input = document.getElementById(`${type}Account`);
+        const trigger = document.getElementById(`${type}AccountTrigger`);
+        const text = document.getElementById(`${type}AccountText`);
+        if (input) input.value = CONFIG.DEFAULT_ACCOUNT_ID;
+        if (trigger && text) { text.textContent = 'Account'; trigger.classList.remove('has-value'); }
+    },
+
+    // ─── Account Management ──────────────────────────────────────────────────
+    async openEditAccount(accountId = null) {
+        this.editingAccountId = accountId;
+        const nameInput = document.getElementById('accountNameInput');
+        const deleteBtn = document.getElementById('deleteAccountBtn');
+        const title = document.getElementById('accountEditSheetTitle');
+        const openingBalInput = document.getElementById('accountOpeningBalance');
+        const openingDateInput = document.getElementById('accountOpeningBalanceDate');
+        const warningDiv = document.getElementById('accountOpeningDateWarning');
+
+        if (warningDiv) warningDiv.style.display = 'none';
+        
+        if (accountId) {
+            const account = await DB.getAccount(accountId);
+            if (account) {
+                nameInput.value = account.name || '';
+                openingBalInput.value = account.openingBalance !== undefined ? account.openingBalance : '';
+                openingDateInput.value = account.openingBalanceDate || '';
+                title.textContent = 'Edit Account';
+                // Do not allow deleting the default account
+                deleteBtn.style.display = accountId === CONFIG.DEFAULT_ACCOUNT_ID ? 'none' : 'block';
+            }
+        } else {
+            nameInput.value = '';
+            openingBalInput.value = '';
+            openingDateInput.value = '';
+            title.textContent = 'Add Account';
+            deleteBtn.style.display = 'none';
+        }
+        
+        this.openCustomSheet('accountEditSheet');
+    },
+
     // ─── Calendar Picker ─────────────────────────────────────────────────────
     openCalendarPicker(targetType) {
         this.calState.activeTarget = targetType;
@@ -682,25 +794,80 @@ const UI = {
         }).join('');
     },
 
+    // ─── Render Accounts Page ────────────────────────────────────────────────
+    async renderAccounts() {
+        const container = document.getElementById('accountsList');
+        if (!container) return;
+
+        const accounts = await DB.getAccounts();
+        
+        if (accounts.length === 0) {
+            container.innerHTML = `
+            <div class="empty-state" style="margin-top: 60px; text-align: center;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; background: rgba(91,61,224,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)" stroke-width="2">
+                        <rect x="2" y="5" width="20" height="14" rx="2" />
+                        <line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                </div>
+                <h3 style="font-size: 20px; color: var(--text-main); margin-bottom: 12px; font-weight: 700;">No Accounts Yet</h3>
+                <p style="color: var(--text-sub); font-size: 15px; max-width: 260px; margin: 0 auto; line-height: 1.6;">Add your first bank account to start tracking your finances accurately.</p>
+            </div>`;
+            return;
+        }
+
+        const accountsWithBalances = await Promise.all(accounts.map(async acc => {
+            const computedBalance = await DB.computeAccountBalance(acc.id);
+            return { ...acc, computedBalance };
+        }));
+
+        container.innerHTML = accountsWithBalances.map((acc, index) => {
+            const isDefault = acc.id === CONFIG.DEFAULT_ACCOUNT_ID;
+            const badge = isDefault ? '<span style="font-size: 10px; background: rgba(255,255,255,0.2); color: #fff; padding: 4px 8px; border-radius: 12px; margin-left: 8px; font-weight: 700; letter-spacing: 0.5px;">DEFAULT</span>' : '';
+            
+            // Alternate premium gradients for accounts
+            const gradients = [
+                'linear-gradient(135deg, #5B3DE0 0%, #8A64FF 100%)',
+                'linear-gradient(135deg, #17A672 0%, #2ED499 100%)',
+                'linear-gradient(135deg, #E5484D 0%, #FF787C 100%)',
+                'linear-gradient(135deg, #0077FF 0%, #4FA3FF 100%)'
+            ];
+            const bg = gradients[index % gradients.length];
+            const balance = Utils.formatCurrency(acc.computedBalance || 0);
+            
+            return `
+            <div class="account-card" onclick="UI.openEditAccount('${acc.id}')" style="background: ${bg}; padding: 24px; border-radius: 24px; color: #fff; box-shadow: 0 12px 24px rgba(0,0,0,0.12); cursor: pointer; position: relative; overflow: hidden; margin-bottom: 8px; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); user-select: none;">
+                <!-- Decorative Elements -->
+                <div style="position: absolute; top: -30px; right: -30px; width: 140px; height: 140px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 100%);"></div>
+                <div style="position: absolute; bottom: -40px; left: -20px; width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.15) 100%);"></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; position: relative; z-index: 1;">
+                    <div style="font-size: 18px; font-weight: 700; display: flex; align-items: center; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 10px; opacity: 0.9;">
+                            <rect x="2" y="5" width="20" height="14" rx="2" />
+                            <line x1="2" y1="10" x2="22" y2="10" />
+                        </svg>
+                        ${Utils.escapeHTML(acc.name)}
+                    </div>
+                    <div>${badge}</div>
+                </div>
+                <div style="position: relative; z-index: 1;">
+                    <div style="font-size: 13px; opacity: 0.85; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Current Balance</div>
+                    <div style="font-size: 32px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 8px rgba(0,0,0,0.15);">${balance}</div>
+                </div>
+            </div>`;
+        }).join('');
+    },
+
     // ─── Render History ───────────────────────────────────────────────────────
     async renderHistoryTransactions() {
         const container = document.getElementById('historyTransactions');
         const allTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+        const dailyBalances = await DB.computeDailyBalances();
 
-        const ledgerGroups = {};
-        allTransactions.forEach(t => {
-            if (!ledgerGroups[t.date]) ledgerGroups[t.date] = { income: 0, expense: 0 };
-            if (t.type === 'income') ledgerGroups[t.date].income += parseFloat(t.amount);
-            else ledgerGroups[t.date].expense += parseFloat(t.amount);
-        });
-
-        const allDatesSorted = Object.keys(ledgerGroups).sort((a, b) => new Date(a) - new Date(b));
-        let runningBalance = 0;
-        const dailyBalances = {};
-        for (const date of allDatesSorted) {
-            runningBalance += ledgerGroups[date].income - ledgerGroups[date].expense;
-            dailyBalances[date] = runningBalance;
-        }
+        // Get the accounts to compute the total starting opening balance as a fallback
+        const accounts = await DB.getAccounts();
+        const totalOpeningBalance = accounts.reduce((sum, acc) => sum + (parseFloat(acc.openingBalance) || 0), 0);
 
         let transactions = [...allTransactions];
         if (this.filter.type !== 'all') transactions = transactions.filter(t => t.type === this.filter.type);
@@ -746,23 +913,45 @@ const UI = {
                     </div>
                 </div>`;
             }).join('');
+
+            let dayEndBal = dailyBalances[date];
+            if (dayEndBal === undefined) {
+                const dbDates = Object.keys(dailyBalances).sort();
+                const priorDate = dbDates.reverse().find(d => d <= date);
+                dayEndBal = priorDate !== undefined ? dailyBalances[priorDate] : totalOpeningBalance;
+            }
+
             return `
             <div class="txn-date-group">
                 <div class="txn-date-label">
                     <span>${dateLabel}</span>
-                    <span class="day-end-balance">Day End: ${Utils.formatCurrency(dailyBalances[date])}</span>
+                    <span class="day-end-balance">Day End: ${Utils.formatCurrency(dayEndBal)}</span>
                 </div>
                 <div class="transactions-list">${itemsHtml}</div>
             </div>`;
         }).join('');
     },
 
-    // ─── Dashboard Stats ─────────────────────────────────────────────────────
     async updateDashboardStats() {
+        const accounts = await DB.getAccounts();
+        const accountDateMap = {};
+        for (const a of accounts) {
+            accountDateMap[a.id] = DB._toISODate(a.openingBalanceDate) || '';
+        }
+
         const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
-        const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount), 0);
-        const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount), 0);
-        const balance = totalIncome - totalExpense;
+        const filteredTransactions = transactions.filter(t => {
+            const openingDate = accountDateMap[t.accountId];
+            if (openingDate) {
+                const txDate = DB._toISODate(t.date);
+                if (txDate < openingDate) return false;
+            }
+            return true;
+        });
+
+        const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount), 0);
+        const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount), 0);
+        const balance = await DB.computeTotalBalance();
 
         // Animated counter
         this.animateCounter('currentBalance', balance);
@@ -921,14 +1110,29 @@ const UI = {
         if (sinceEl) sinceEl.textContent = `Member since ${memberSince}`;
 
         // Stats
+        const accounts = await DB.getAccounts();
+        const accountDateMap = {};
+        for (const a of accounts) {
+            accountDateMap[a.id] = DB._toISODate(a.openingBalanceDate) || '';
+        }
+
         const transactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
-        const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount), 0);
-        const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount), 0);
+        const filteredTransactions = transactions.filter(t => {
+            const openingDate = accountDateMap[t.accountId];
+            if (openingDate) {
+                const txDate = DB._toISODate(t.date);
+                if (txDate < openingDate) return false;
+            }
+            return true;
+        });
+
+        const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((s, t) => s + parseFloat(t.amount), 0);
+        const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + parseFloat(t.amount), 0);
         const netSaved = totalIncome - totalExpense;
 
-        const uniqueDates = new Set(transactions.map(t => t.date));
+        const uniqueDates = new Set(filteredTransactions.map(t => t.date));
 
-        document.getElementById('statTotalTx').textContent = transactions.length;
+        document.getElementById('statTotalTx').textContent = filteredTransactions.length;
         document.getElementById('statTotalSaved').textContent = Utils.formatCurrency(netSaved);
         document.getElementById('statDaysActive').textContent = uniqueDates.size;
 
@@ -1181,6 +1385,118 @@ const UI = {
         document.getElementById('categoryPickerList')?.addEventListener('click', e => {
             const item = e.target.closest('.category-picker-item');
             if (item) this.selectCategory(item.dataset.category);
+        });
+
+        // Account Triggers
+        document.getElementById('expenseAccountTrigger')?.addEventListener('click', () => this.openAccountPicker('expense'));
+        document.getElementById('incomeAccountTrigger')?.addEventListener('click', () => this.openAccountPicker('income'));
+        document.getElementById('reconcileAccountTrigger')?.addEventListener('click', () => this.openAccountPicker('reconcile'));
+
+        document.getElementById('accountPickerList')?.addEventListener('click', e => {
+            const item = e.target.closest('.category-picker-item');
+            if (item) this.selectAccount(item.dataset.account, item.dataset.name);
+        });
+
+        document.getElementById('closeAccountPickerBtn')?.addEventListener('click', () => this.closeCustomSheets());
+        document.getElementById('closeAccountEditSheetBtn')?.addEventListener('click', () => this.closeCustomSheets());
+
+        document.getElementById('addAccountBtn')?.addEventListener('click', () => this.openEditAccount());
+
+        document.getElementById('saveAccountBtn')?.addEventListener('click', async () => {
+            const name = document.getElementById('accountNameInput').value.trim();
+            if (!name) { Utils.showToast('Please enter an account name'); return; }
+            
+            const openingBal = parseFloat(document.getElementById('accountOpeningBalance').value) || 0;
+            const openingDate = document.getElementById('accountOpeningBalanceDate').value;
+
+            // Date overlap validation check
+            if (openingDate) {
+                const warningDiv = document.getElementById('accountOpeningDateWarning');
+                const isWarningVisible = warningDiv && warningDiv.style.display === 'block';
+
+                // Check if any existing transactions for this account have date <= openingDate
+                const allTx = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+                const overlapTx = allTx.find(t => {
+                    if (this.editingAccountId && t.accountId !== this.editingAccountId) return false;
+                    const txDate = DB._toISODate(t.date);
+                    return txDate <= openingDate;
+                });
+
+                if (overlapTx && !isWarningVisible) {
+                    if (warningDiv) {
+                        warningDiv.style.display = 'block';
+                        warningDiv.scrollIntoView({ behavior: 'smooth' });
+                    }
+                    Utils.showToast('Warning: Opening date overlaps with transactions');
+                    return; // Stop here, allow user to click again to confirm
+                }
+            }
+            
+            Utils.showLoading(true);
+            try {
+                let account;
+                if (this.editingAccountId) {
+                    account = await DB.getAccount(this.editingAccountId);
+                    if (account) {
+                        account.name = name;
+                        account.openingBalance = openingBal;
+                        account.openingBalanceDate = openingDate;
+                        await DB.updateAccount(account);
+                        if (Utils.isOnline()) {
+                            await API.updateAccount(account);
+                        } else {
+                            await DB.addToSyncQueue('UPDATE_ACCOUNT', account);
+                        }
+                        Utils.showToast('Account updated');
+                    }
+                } else {
+                    account = { 
+                        id: Utils.generateId(), 
+                        name: name, 
+                        type: 'bank', 
+                        balance: 0,
+                        openingBalance: openingBal,
+                        openingBalanceDate: openingDate
+                    };
+                    await DB.addAccount(account);
+                    if (Utils.isOnline()) {
+                        await API.createAccount(account);
+                    } else {
+                        await DB.addToSyncQueue('CREATE_ACCOUNT', account);
+                    }
+                    Utils.showToast('Account created');
+                }
+                this.closeCustomSheets();
+                await this.renderAccounts();
+                await this.updateDashboardStats();
+                await this.renderHistoryTransactions();
+            } catch (e) {
+                console.error(e);
+                Utils.showToast('Error saving account');
+            } finally {
+                Utils.showLoading(false);
+            }
+        });
+
+        document.getElementById('deleteAccountBtn')?.addEventListener('click', async () => {
+            if (!this.editingAccountId) return;
+            Utils.showLoading(true);
+            try {
+                await DB.deleteAccount(this.editingAccountId);
+                if (Utils.isOnline()) {
+                    await API.deleteAccount(this.editingAccountId);
+                } else {
+                    await DB.addToSyncQueue('DELETE_ACCOUNT', { id: this.editingAccountId });
+                }
+                Utils.showToast('Account deleted');
+                this.closeCustomSheets();
+                await this.renderAccounts();
+            } catch (e) {
+                console.error(e);
+                Utils.showToast(e.message || 'Error deleting account');
+            } finally {
+                Utils.showLoading(false);
+            }
         });
 
         // Custom Date Triggers
@@ -1779,6 +2095,11 @@ const UI = {
             }
         }
 
+        // Render accounts if navigating to accounts page
+        if (pageName === 'accounts') {
+            this.renderAccounts();
+        }
+
         // Show/hide screen overlays based on route
         if (pageName === 'splash') {
             this.hideAuthScreen();
@@ -1974,11 +2295,23 @@ const UI = {
         const file = fileInput.files[0];
         if (!file) return;
 
+        const accountId = document.getElementById('reconcileAccount')?.value;
+        if (!accountId) {
+            Utils.showToast('Please select an account first');
+            fileInput.value = '';
+            return;
+        }
+        
+        this._reconcileAccountId = accountId;
+
         document.getElementById('reconcileUploadState').style.display = 'none';
         document.getElementById('reconcileLoadingState').style.display = 'block';
 
         try {
-            const appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            let appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            // Only consider transactions in the selected account
+            appTransactions = appTransactions.filter(t => (t.accountId || CONFIG.DEFAULT_ACCOUNT_ID) === accountId);
+            
             const result = await Reconcile.reconcile(file, appTransactions);
             this._lastResult = result; // keep for "Add All Missing" action
             this.renderReconcileResults(result);
@@ -2078,6 +2411,7 @@ const UI = {
                 date: entry.date,
                 type: entry.type,
                 category: 'Other',
+                accountId: this._reconcileAccountId || CONFIG.DEFAULT_ACCOUNT_ID,
                 amount: entry.amount,
                 description: entry.description,
             });
@@ -2096,7 +2430,8 @@ const UI = {
             }
             
             // Re-run matching pipeline to update all counters (Matched, Missing, Unmatched)
-            const appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            let appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            appTransactions = appTransactions.filter(t => (t.accountId || CONFIG.DEFAULT_ACCOUNT_ID) === (this._reconcileAccountId || CONFIG.DEFAULT_ACCOUNT_ID));
             const result = Reconcile.matchTransactions(this._lastResult.bankTx, appTransactions);
             this._lastResult = { 
                 ...result, 
@@ -2116,34 +2451,52 @@ const UI = {
     },
 
     async addAllMissing() {
+        if (typeof APP !== 'undefined') APP.isProcessing = true;
         Utils.showLoading(true);
+        console.log(`[DEBUG] addAllMissing: Starting process for ${this._lastResult.missingInApp.length} missing transactions.`);
         try {
             const entries = [...this._lastResult.missingInApp];
-            for (const entry of entries) {
+            console.log("[DEBUG] addAllMissing: Complete list of entries to add:", entries);
+            const transactionsToCreate = [];
+            for (let i = 0; i < entries.length; i++) {
+                const entry = entries[i];
+                console.log(`[DEBUG] addAllMissing: Preparing transaction ${i + 1}/${entries.length}: ${entry.description} (Amount: ${entry.amount})`);
                 const transaction = await DB.addTransaction({
                     date: entry.date,
                     type: entry.type,
                     category: 'Other',
+                    accountId: this._reconcileAccountId || CONFIG.DEFAULT_ACCOUNT_ID,
                     amount: entry.amount,
                     description: entry.description,
                 });
+                transactionsToCreate.push(transaction);
+            }
 
-                // Sync with Google Sheets
-                if (Utils.isOnline()) {
-                    try {
-                        await API.createTransaction(transaction);
-                    } catch (e) {
-                        console.error("Sync error:", e);
-                        await DB.addToSyncQueue('CREATE', transaction);
+            console.log(`[DEBUG] addAllMissing: Created locally in IndexedDB. Synced status is online? ${Utils.isOnline()}`);
+
+            // Sync with Google Sheets in a single batch request
+            if (Utils.isOnline() && transactionsToCreate.length > 0) {
+                try {
+                    console.log(`[DEBUG] addAllMissing: Sending batch request of ${transactionsToCreate.length} entries to server.`);
+                    const batchResult = await API.createTransactions(transactionsToCreate);
+                    console.log(`[DEBUG] addAllMissing: Batch request completed.`, batchResult);
+                } catch (e) {
+                    console.error("[DEBUG] addAllMissing: Batch sync error, adding to offline queue:", e);
+                    for (const tx of transactionsToCreate) {
+                        await DB.addToSyncQueue('CREATE', tx);
                     }
-                } else {
-                    await DB.addToSyncQueue('CREATE', transaction);
+                }
+            } else {
+                console.log(`[DEBUG] addAllMissing: Offline or no items to sync, adding all to offline queue.`);
+                for (const tx of transactionsToCreate) {
+                    await DB.addToSyncQueue('CREATE', tx);
                 }
             }
             Utils.showToast(`Added ${entries.length} transactions`);
             
-            // Re-run matching pipeline to update all counters (Matched, Missing, Unmatched)
-            const appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            // Re-run matching pipeline to update all counters
+            let appTransactions = await DB.getTransactionsForUser(DB.getCurrentUserIdSync());
+            appTransactions = appTransactions.filter(t => (t.accountId || CONFIG.DEFAULT_ACCOUNT_ID) === (this._reconcileAccountId || CONFIG.DEFAULT_ACCOUNT_ID));
             const result = Reconcile.matchTransactions(this._lastResult.bankTx, appTransactions);
             this._lastResult = { 
                 ...result, 
@@ -2155,9 +2508,13 @@ const UI = {
             this.renderReconcileResults(this._lastResult);
             await UI.updateDashboardStats();
         } catch (error) {
-            console.error('Error adding transactions:', error);
+            console.error('[DEBUG] addAllMissing: Error adding transactions:', error);
             Utils.showToast('Failed to add transactions');
         } finally {
+            if (typeof APP !== 'undefined') {
+                APP.isProcessing = false;
+                APP.resetIdleTimer();
+            }
             Utils.showLoading(false);
         }
     },

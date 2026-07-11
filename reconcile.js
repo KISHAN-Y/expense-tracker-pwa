@@ -315,6 +315,7 @@ const Reconcile = {
         }
 
         console.log("Statement row parsing complete. Successfully extracted " + transactions.length + " transactions.");
+        console.log("[DEBUG] All extracted transactions from PDF:", transactions);
         return transactions;
     },
 
@@ -417,6 +418,7 @@ const Reconcile = {
 
         console.log("=== MATCHING LOGS COMPLETED ===");
         console.log(`Result summary: Matches=${matchedCount} | Date Mismatches=${dateMismatches.length} | Missing in App=${missingInApp.length} | Unmatched in App=${extraInApp.length}`);
+        console.log("[DEBUG] All missing entries identified:", missingInApp);
 
         return { missingInApp, extraInApp, dateMismatches, matchedCount };
     },

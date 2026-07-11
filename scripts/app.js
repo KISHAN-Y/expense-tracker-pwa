@@ -179,16 +179,24 @@ const APP = {
                     UI.showSkeletons('historyTransactions', 5);
                 }
 
-                const transactions = await API.getTransactions();
-                if (transactions !== null) {
+                const serverData = await API.getData();
+                if (serverData !== null) {
+                    const { transactions, accounts } = serverData;
+
                     // Clear local DB and sync with server
                     await DB.clearTransactions();
+                    await DB.clearAccounts();
                     
+                    // Add all accounts from server
+                    for (const a of accounts) {
+                        await DB.addAccount(a);
+                    }
+
                     // Add all transactions from server
                     for (const t of transactions) {
                         await DB.addTransaction(t);
                     }
-                    console.log('Synced transactions from server');
+                    console.log('Synced transactions and accounts from server');
                     
                     // 3. Re-render UI with the fresh data
                     await UI.updateDashboardStats();
@@ -217,11 +225,13 @@ const APP = {
     async handleTxFormSubmit(type) {
         const amountId     = type === 'expense' ? 'expenseAmount'      : 'incomeAmount';
         const categoryId   = type === 'expense' ? 'expenseCategory'    : 'incomeCategory';
+        const accountIdInput = type === 'expense' ? 'expenseAccount'   : 'incomeAccount';
         const descId       = type === 'expense' ? 'expenseDescription' : 'incomeDescription';
         const dateId       = type === 'expense' ? 'expenseDate'        : 'incomeDate';
 
         const amount   = parseFloat(document.getElementById(amountId)?.value);
         const category = document.getElementById(categoryId)?.value;
+        const accountId = document.getElementById(accountIdInput)?.value || CONFIG.DEFAULT_ACCOUNT_ID;
         const desc     = document.getElementById(descId)?.value || '';
         const date     = document.getElementById(dateId)?.value;
 
@@ -229,9 +239,19 @@ const APP = {
         if (!category)                     { Utils.showToast('Please select a category'); return; }
         if (!date)                         { Utils.showToast('Please select a date'); return; }
 
+        const account = await DB.getAccount(accountId);
+        if (account && account.openingBalanceDate) {
+            const txDateNorm = DB._toISODate(date);
+            const openDateNorm = DB._toISODate(account.openingBalanceDate);
+            if (txDateNorm < openDateNorm) {
+                const proceed = confirm("This transaction is dated before your account's opening balance date and won't be included in balance totals. Update the opening balance date if this is unexpected.\n\nDo you want to proceed?");
+                if (!proceed) return;
+            }
+        }
+
         Utils.showLoading(true);
         try {
-            const transaction = { type, amount: amount.toString(), category, description: desc, date };
+            const transaction = { type, amount: amount.toString(), category, accountId, description: desc, date };
 
             if (this.editingTransactionId) {
                 // Update existing
@@ -397,6 +417,8 @@ const APP = {
             // Set values in the hidden inputs
             document.getElementById(`${type}Amount`).value = transaction.amount;
             document.getElementById(`${type}Category`).value = transaction.category;
+            const accountId = transaction.accountId || CONFIG.DEFAULT_ACCOUNT_ID;
+            document.getElementById(`${type}Account`).value = accountId;
             document.getElementById(`${type}Description`).value = transaction.description || '';
             document.getElementById(`${type}Date`).value = transaction.date;
 
@@ -410,6 +432,11 @@ const APP = {
             const emoji = UI.getCategoryEmoji(transaction.category, type);
             document.getElementById(`${type}CategoryText`).innerHTML = `<span>${emoji}</span> <span>${transaction.category}</span>`;
             document.getElementById(`${type}CategoryTrigger`).classList.add('has-value');
+            
+            const account = await DB.getAccount(accountId);
+            const accountName = account ? account.name : 'Unknown Account';
+            document.getElementById(`${type}AccountText`).innerHTML = `<span>🏦</span> <span>${accountName}</span>`;
+            document.getElementById(`${type}AccountTrigger`).classList.add('has-value');
             
             document.getElementById(`${type}DateText`).innerHTML = `<span>${Utils.formatDate(transaction.date)}</span>`;
             document.getElementById(`${type}DateTrigger`).classList.add('has-value');
@@ -481,6 +508,11 @@ const APP = {
         
         const currentUser = localStorage.getItem('currentUser');
         if (!currentUser) return; // Only track idle if logged in
+        
+        if (this.isProcessing) {
+            console.log('[DEBUG] Idle timer bypassed - app is currently processing transactions.');
+            return;
+        }
         
         this.idleTimer = setTimeout(() => this.handleIdleLogout(), this.IDLE_TIMEOUT);
     },

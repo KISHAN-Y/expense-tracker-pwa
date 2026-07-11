@@ -15,8 +15,8 @@ const API = {
         }
     },
 
-    // Get all transactions from server
-    async getTransactions() {
+    // Get all transactions and accounts from server
+    async getData() {
         try {
             const currentUserId = DB.getCurrentUserIdSync();
             const url = `${CONFIG.API_ENDPOINT}?userId=${encodeURIComponent(currentUserId)}`;
@@ -29,9 +29,12 @@ const API = {
             }
 
             const data = await response.json();
-            return data.transactions || [];
+            return {
+                transactions: data.transactions || [],
+                accounts: data.accounts || []
+            };
         } catch (error) {
-            console.error('Error fetching transactions:', error);
+            console.error('Error fetching data:', error);
             return null;
         }
     },
@@ -57,6 +60,34 @@ const API = {
             if (!Utils.isOnline()) {
                 await DB.addToSyncQueue('CREATE', transaction);
                 return transaction;
+            }
+            throw error;
+        }
+    },
+
+    // Batch create transactions
+    async createTransactions(transactions) {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'BATCH_CREATE', data: transactions, userId: currentUserId })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.success ? data.transactions : null;
+        } catch (error) {
+            console.error('Error batch creating transactions:', error);
+            if (!Utils.isOnline()) {
+                for (const tx of transactions) {
+                    await DB.addToSyncQueue('CREATE', tx);
+                }
+                return transactions;
             }
             throw error;
         }
@@ -114,6 +145,84 @@ const API = {
         }
     },
 
+    // Create account
+    async createAccount(account) {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'CREATE_ACCOUNT', data: account, userId: currentUserId })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.success ? data.account : null;
+        } catch (error) {
+            console.error('Error creating account:', error);
+            if (!Utils.isOnline()) {
+                await DB.addToSyncQueue('CREATE_ACCOUNT', account);
+                return account;
+            }
+            throw error;
+        }
+    },
+
+    // Update account
+    async updateAccount(account) {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'UPDATE_ACCOUNT', data: account, userId: currentUserId })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.success ? data.account : null;
+        } catch (error) {
+            console.error('Error updating account:', error);
+            if (!Utils.isOnline()) {
+                await DB.addToSyncQueue('UPDATE_ACCOUNT', account);
+                return account;
+            }
+            throw error;
+        }
+    },
+
+    // Delete account
+    async deleteAccount(id) {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'DELETE_ACCOUNT', data: { id }, userId: currentUserId })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.success;
+        } catch (error) {
+            console.error('Error deleting account:', error);
+            if (!Utils.isOnline()) {
+                await DB.addToSyncQueue('DELETE_ACCOUNT', { id });
+                return true;
+            }
+            throw error;
+        }
+    },
+
     // Register user
     async register(email, password, displayName) {
         try {
@@ -165,73 +274,112 @@ const API = {
     // Sync offline queue
     async syncQueue() {
         if (!Utils.isOnline()) return false;
+        if (typeof APP !== 'undefined') APP.isProcessing = true;
 
-        const queue = await DB.getSyncQueue();
-        if (queue.length === 0) {
+        try {
+            const queue = await DB.getSyncQueue();
+            console.log(`[DEBUG] syncQueue: Starting sync queue processing. Size: ${queue.length}`);
+            if (queue.length === 0) {
+                UI.updateSyncStatus(true, 0);
+                if (typeof APP !== 'undefined') APP.isProcessing = false;
+                return true;
+            }
+
+            UI.updateSyncStatus(false, queue.length);
+            Utils.showLoading(true);
+            let successCount = 0;
+
+            for (let i = 0; i < queue.length; i++) {
+                const item = queue[i];
+                try {
+                    const { action, data, userId } = item;
+                    const targetUserId = userId || DB.getCurrentUserIdSync();
+                    let success = false;
+                    let response;
+                    
+                    console.log(`[DEBUG] syncQueue: Processing item ${i + 1}/${queue.length}. Action: ${action}`, data);
+
+                    switch (action) {
+                        case 'CREATE':
+                            response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({ action: 'CREATE', data, userId: targetUserId })
+                            });
+                            break;
+                        case 'UPDATE':
+                            response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({ action: 'UPDATE', data, userId: targetUserId })
+                            });
+                            break;
+                        case 'DELETE':
+                            response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({ action: 'DELETE', data, userId: targetUserId })
+                            });
+                            break;
+                        case 'CREATE_ACCOUNT':
+                            response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({ action: 'CREATE_ACCOUNT', data, userId: targetUserId })
+                            });
+                            break;
+                        case 'UPDATE_ACCOUNT':
+                            response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({ action: 'UPDATE_ACCOUNT', data, userId: targetUserId })
+                            });
+                            break;
+                        case 'DELETE_ACCOUNT':
+                            response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'text/plain' },
+                                body: JSON.stringify({ action: 'DELETE_ACCOUNT', data, userId: targetUserId })
+                            });
+                            break;
+                    }
+
+                    if (response && response.ok) {
+                        const resJson = await response.json();
+                        if (resJson && resJson.success) {
+                            success = true;
+                            console.log(`[DEBUG] syncQueue: Item ${i + 1} successfully synced to server.`);
+                        } else {
+                            console.error('[DEBUG] syncQueue: Server returned success=false:', resJson);
+                        }
+                    } else {
+                        console.error('[DEBUG] syncQueue: HTTP response error:', response ? response.status : 'no response');
+                    }
+
+                    if (success) {
+                        await DB.clearSyncQueue(item.id);
+                        successCount++;
+                    }
+                } catch (error) {
+                    console.error('[DEBUG] Sync error on item:', error);
+                }
+            }
+
+            Utils.showLoading(false);
             UI.updateSyncStatus(true, 0);
-            return true;
-        }
 
-        UI.updateSyncStatus(false, queue.length);
-        Utils.showLoading(true);
-        let successCount = 0;
+            if (successCount > 0) {
+                Utils.showToast(`✓ Synced ${successCount} transaction(s)`);
+            }
 
-        for (const item of queue) {
-            try {
-                const { action, data, userId } = item;
-                const targetUserId = userId || DB.getCurrentUserIdSync();
-                let success = false;
-
-                switch (action) {
-                    case 'CREATE':
-                        const createResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'CREATE', data, userId: targetUserId })
-                        });
-                        if (createResp.ok) {
-                            success = true;
-                        }
-                        break;
-                    case 'UPDATE':
-                        const updateResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'UPDATE', data, userId: targetUserId })
-                        });
-                        if (updateResp.ok) {
-                            success = true;
-                        }
-                        break;
-                    case 'DELETE':
-                        const deleteResp = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'DELETE', data, userId: targetUserId })
-                        });
-                        if (deleteResp.ok) {
-                            success = true;
-                        }
-                        break;
-                }
-
-                if (success) {
-                    await DB.clearSyncQueue(item.id);
-                    successCount++;
-                }
-            } catch (error) {
-                console.error('Sync error:', error);
+            console.log(`[DEBUG] syncQueue: Queue processing completed. Synced ${successCount}/${queue.length}`);
+            return successCount === queue.length;
+        } finally {
+            if (typeof APP !== 'undefined') {
+                APP.isProcessing = false;
+                APP.resetIdleTimer();
             }
         }
-
-        Utils.showLoading(false);
-        UI.updateSyncStatus(true, 0);
-
-        if (successCount > 0) {
-            Utils.showToast(`✓ Synced ${successCount} transaction(s)`);
-        }
-
-        return successCount === queue.length;
     }
 };
 
