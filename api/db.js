@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TRANSACTIONS_FILE = path.join(DATA_DIR, 'transactions.json');
+const BUDGETS_FILE = path.join(DATA_DIR, 'budgets.json');
 
 // Initialize database storage
 function initDb() {
@@ -16,6 +17,9 @@ function initDb() {
     }
     if (!fs.existsSync(TRANSACTIONS_FILE)) {
         fs.writeFileSync(TRANSACTIONS_FILE, JSON.stringify([], null, 2), 'utf-8');
+    }
+    if (!fs.existsSync(BUDGETS_FILE)) {
+        fs.writeFileSync(BUDGETS_FILE, JSON.stringify([], null, 2), 'utf-8');
     }
 }
 
@@ -67,6 +71,8 @@ module.exports = {
     saveUsers: (users) => writeJsonFile(USERS_FILE, users),
     getTransactions: () => readJsonFile(TRANSACTIONS_FILE),
     saveTransactions: (txs) => writeJsonFile(TRANSACTIONS_FILE, txs),
+    getBudgets: () => readJsonFile(BUDGETS_FILE),
+    saveBudgets: (budgets) => writeJsonFile(BUDGETS_FILE, budgets),
     hashPassword,
     generateRandomHex
 };

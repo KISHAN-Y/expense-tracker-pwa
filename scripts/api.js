@@ -162,6 +162,232 @@ const API = {
         }
     },
 
+    // Get dashboard stats
+    async getDashboard() {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const isGoogleScript = CONFIG.API_ENDPOINT.includes('script.google.com');
+            
+            let response;
+            if (isGoogleScript) {
+                response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'GET_DASHBOARD', userId: currentUserId })
+                });
+            } else {
+                const url = `${CONFIG.API_ENDPOINT.replace(/\/$/, '')}/dashboard?userId=${encodeURIComponent(currentUserId)}`;
+                response = await this.fetchWithTimeout(url, { method: 'GET' });
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error fetching dashboard stats:', error);
+            return { success: false, error: error.message || error.toString() };
+        }
+    },
+
+    // Get user profile
+    async getProfile() {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const isGoogleScript = CONFIG.API_ENDPOINT.includes('script.google.com');
+            
+            let response;
+            if (isGoogleScript) {
+                response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'GET_PROFILE', userId: currentUserId })
+                });
+            } else {
+                const url = `${CONFIG.API_ENDPOINT.replace(/\/$/, '')}/profile?userId=${encodeURIComponent(currentUserId)}`;
+                response = await this.fetchWithTimeout(url, { method: 'GET' });
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+            return { success: false, error: error.message || error.toString() };
+        }
+    },
+
+    // Update user profile
+    async updateProfile(profileData) {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const isGoogleScript = CONFIG.API_ENDPOINT.includes('script.google.com');
+            
+            let response;
+            if (isGoogleScript) {
+                response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'UPDATE_PROFILE', data: profileData, userId: currentUserId })
+                });
+            } else {
+                const url = `${CONFIG.API_ENDPOINT.replace(/\/$/, '')}/profile`;
+                response = await this.fetchWithTimeout(url, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profile: profileData, userId: currentUserId })
+                });
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            return { success: false, error: error.message || error.toString() };
+        }
+    },
+
+    // Get budgets
+    async getBudgets() {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const isGoogleScript = CONFIG.API_ENDPOINT.includes('script.google.com');
+            
+            let response;
+            if (isGoogleScript) {
+                response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'GET_BUDGETS', userId: currentUserId })
+                });
+            } else {
+                const url = `${CONFIG.API_ENDPOINT.replace(/\/$/, '')}/budgets?userId=${encodeURIComponent(currentUserId)}`;
+                response = await this.fetchWithTimeout(url, { method: 'GET' });
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error fetching budgets:', error);
+            return { success: false, error: error.message || error.toString() };
+        }
+    },
+
+    // Create a budget
+    async createBudget(budget) {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const isGoogleScript = CONFIG.API_ENDPOINT.includes('script.google.com');
+            
+            let response;
+            if (isGoogleScript) {
+                response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'CREATE_BUDGET', data: budget, userId: currentUserId })
+                });
+            } else {
+                const url = `${CONFIG.API_ENDPOINT.replace(/\/$/, '')}/budgets`;
+                response = await this.fetchWithTimeout(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ budget, userId: currentUserId })
+                });
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error creating budget:', error);
+            return { success: false, error: error.message || error.toString() };
+        }
+    },
+
+    // Update a budget
+    async updateBudget(budget) {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const isGoogleScript = CONFIG.API_ENDPOINT.includes('script.google.com');
+            
+            let response;
+            if (isGoogleScript) {
+                response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'UPDATE_BUDGET', data: budget, userId: currentUserId })
+                });
+            } else {
+                const url = `${CONFIG.API_ENDPOINT.replace(/\/$/, '')}/budgets`;
+                response = await this.fetchWithTimeout(url, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ budget, userId: currentUserId })
+                });
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error updating budget:', error);
+            return { success: false, error: error.message || error.toString() };
+        }
+    },
+
+    // Delete a budget
+    async deleteBudget(id) {
+        try {
+            const currentUserId = DB.getCurrentUserIdSync();
+            const isGoogleScript = CONFIG.API_ENDPOINT.includes('script.google.com');
+            
+            let response;
+            if (isGoogleScript) {
+                response = await this.fetchWithTimeout(CONFIG.API_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify({ action: 'DELETE_BUDGET', data: { id }, userId: currentUserId })
+                });
+            } else {
+                const url = `${CONFIG.API_ENDPOINT.replace(/\/$/, '')}/budgets`;
+                response = await this.fetchWithTimeout(url, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, userId: currentUserId })
+                });
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error deleting budget:', error);
+            return { success: false, error: error.message || error.toString() };
+        }
+    },
+
     // Sync offline queue
     async syncQueue() {
         if (!Utils.isOnline()) return false;
