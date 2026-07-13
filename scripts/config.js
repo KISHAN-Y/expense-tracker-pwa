@@ -3,7 +3,7 @@ const CONFIG = {
     APP_NAME: 'Expense Tracker',
     VERSION: '2.0.0',
     CACHE_VERSION: 'v6',
-    API_ENDPOINT: 'https://script.google.com/macros/s/AKfycbxn-uU4TgVkT5hNgpd6XTTIJd5xFbvNogyesPDe0CEQVWPfn4tTJCb6FQLEGffvUFRu7Q/exec', // Replace with your Google Apps Script URL
+    API_ENDPOINT: 'https://script.google.com/macros/s/AKfycbyocxxT2mxfPrH9WrE5zY7FIan2KUMXetIlx3Wi5yfApF55UVUclChC0vMJF0aagoaztQ/exec', // Replace with your Google Apps Script URL
     CURRENCIES: {
         INR: { symbol: '₹', name: 'Indian Rupee' },
         USD: { symbol: '$', name: 'US Dollar' },
