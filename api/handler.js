@@ -125,19 +125,25 @@ async function apiHandler(req, res) {
         }
 
         // Registration: POST /api/auth/register
-        if (pathname === '/api/auth/register' && req.method === 'POST') {
-            const body = await parseBody(req);
-            const result = auth.register(body.email, body.password, body.displayName);
-            const status = result.success ? 201 : 400;
-            return sendJson(res, status, result);
+        if (pathname === '/api/auth/register') {
+            if (req.method === 'POST') {
+                const body = await parseBody(req);
+                const result = auth.register(body.email, body.password, body.displayName);
+                const status = result.success ? 201 : 400;
+                return sendJson(res, status, result);
+            }
+            return sendJson(res, 405, { success: false, error: 'Method not allowed on /api/auth/register' });
         }
 
         // Login: POST /api/auth/login
-        if (pathname === '/api/auth/login' && req.method === 'POST') {
-            const body = await parseBody(req);
-            const result = auth.login(body.email, body.password);
-            const status = result.success ? 200 : 401;
-            return sendJson(res, status, result);
+        if (pathname === '/api/auth/login') {
+            if (req.method === 'POST') {
+                const body = await parseBody(req);
+                const result = auth.login(body.email, body.password);
+                const status = result.success ? 200 : 401;
+                return sendJson(res, status, result);
+            }
+            return sendJson(res, 405, { success: false, error: 'Method not allowed on /api/auth/login' });
         }
 
         // Transactions CRUD:
