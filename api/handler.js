@@ -97,6 +97,33 @@ async function apiHandler(req, res) {
         // 2. RESTful HTTP Endpoint Routes (Mobile / Modern API style)
         // ==========================================
 
+        // Health Check: GET /api/health
+        if (pathname === '/api/health') {
+            if (req.method === 'GET') {
+                let dbStatus = 'healthy';
+                try {
+                    const fs = require('fs');
+                    const path = require('path');
+                    const usersFile = path.join(__dirname, '..', 'data', 'users.json');
+                    const txFile = path.join(__dirname, '..', 'data', 'transactions.json');
+                    
+                    // Verify database files are readable and writable
+                    fs.accessSync(usersFile, fs.constants.R_OK | fs.constants.W_OK);
+                    fs.accessSync(txFile, fs.constants.R_OK | fs.constants.W_OK);
+                } catch (err) {
+                    dbStatus = 'degraded';
+                }
+
+                return sendJson(res, 200, {
+                    status: 'healthy',
+                    database: dbStatus,
+                    timestamp: new Date().toISOString(),
+                    uptime: process.uptime()
+                });
+            }
+            return sendJson(res, 405, { success: false, error: 'Method not allowed on /api/health' });
+        }
+
         // Registration: POST /api/auth/register
         if (pathname === '/api/auth/register' && req.method === 'POST') {
             const body = await parseBody(req);

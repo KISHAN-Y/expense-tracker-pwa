@@ -7,6 +7,30 @@
   },
   "item": [
     {
+      "name": "System Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "Checks the health status of the API server and database."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Authentication (REST)",
       "item": [
         {
